@@ -4014,7 +4014,7 @@
   "schedule_fetch_failed": "Không tải được lịch trình",
   "usage_fetch_failed": "Không tải được mức sử dụng",
   "ai_usage_fetch_failed": "Không tải được mức sử dụng AI",
-  "dashboard_date_format": "dddd, ngày D MMMM",
+  "dashboard_date_format": "dddd, [ngày] D MMMM",
   "schedule_day_abbrev_format": "ddd",
   "schedule_day_number_format": "D",
   "chart_date_format": "D/M",

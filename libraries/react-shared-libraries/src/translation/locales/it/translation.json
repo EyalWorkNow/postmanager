@@ -4139,7 +4139,7 @@
   "api_key_date_format": "MMM D, AAAA",
   "notification_full_date_format": "MMM D, AAAA h:mm A",
   "preview_date_format": "MMMM D, AAAA h:mm A",
-  "post_selector_date_format": "GG/MM/AAAA HH:mm:ss",
+  "post_selector_date_format": "DD/MM/YYYY HH:mm:ss",
   "status_label": "Stato:",
   "remove_from_campaign": "Rimuovi dalla campagna",
   "are_you_sure_revoke_access": "Sei sicuro di voler revocare l'accesso per {{name}}?",
