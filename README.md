@@ -156,7 +156,7 @@ Sign in with Google, GitHub, Apple, Facebook, X, LinkedIn, or any generic OIDC p
 
 ## 🌍 Localization
 
-The full UI — composer, settings, media tools, analytics, and auth — ships in 13 languages: English, Arabic, German, Spanish, French, Italian, Japanese, Korean, Portuguese, Russian, Turkish, Vietnamese, and Chinese.
+The full UI — composer, settings, media tools, analytics, and auth — ships in 16 languages: English, Arabic, German, Spanish, French, Indonesian, Italian, Japanese, Korean, Dutch, Polish, Portuguese, Russian, Turkish, Vietnamese, and Chinese.
 
 ## 🔒 Self-hosted & security-hardened
 

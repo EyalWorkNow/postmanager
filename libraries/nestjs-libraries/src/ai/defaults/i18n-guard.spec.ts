@@ -11,7 +11,7 @@ const LOCALES_DIR = path.resolve(
   __dirname,
   '../../../../react-shared-libraries/src/translation/locales'
 );
-const UI_LOCALES = ['ar', 'de', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'ru', 'tr', 'vi', 'zh'];
+const UI_LOCALES = ['ar', 'de', 'es', 'fr', 'id', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'ru', 'tr', 'vi', 'zh'];
 
 const load = (locale: string): Record<string, string> =>
   JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, locale, 'translation.json'), 'utf8'));
@@ -28,7 +28,7 @@ describe('i18n guard', () => {
     expect(LANGUAGE_CODES).not.toContain('bn');
   });
 
-  it('ships exactly en + 12 UI locale files, all valid JSON', () => {
+  it('ships exactly en + 15 UI locale files, all valid JSON', () => {
     const dirs = fs
       .readdirSync(LOCALES_DIR, { withFileTypes: true })
       .filter((d) => d.isDirectory())
@@ -51,6 +51,25 @@ describe('i18n guard', () => {
           .slice(0, 5)
           .join(', ')})`
       ).toEqual([]);
+    }
+  });
+
+  it('keeps dayjs date-format values made of dayjs tokens, not translated letters', () => {
+    // A translator once localized the tokens themselves (JJJJ, AAAA, ГГГГ) and left
+    // literal words unescaped ("D de MMMM" — dayjs reads the d as a weekday).
+    const en = load('en');
+    const formatKeys = Object.keys(en).filter(
+      (k) => k.endsWith('_format') && /^[YMDdHhmsA ,:/.-]+$/.test(en[k])
+    );
+    expect(formatKeys.length).toBeGreaterThan(0);
+    const leftover = (v: string) =>
+      v
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/Y{2,4}|M{1,4}|D{1,2}|d{1,4}|H{1,2}|h{1,2}|m{1,2}|s{1,2}|a|A/g, '');
+    for (const locale of UI_LOCALES) {
+      const o = load(locale);
+      const bad = formatKeys.filter((k) => /[A-Za-zЀ-ӿ]/.test(leftover(o[k])));
+      expect(bad.map((k) => `${k}=${o[k]}`), locale).toEqual([]);
     }
   });
 });

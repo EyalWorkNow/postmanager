@@ -13,6 +13,9 @@ export const languages = [
   'ar',
   'tr',
   'vi',
+  'nl',
+  'id',
+  'pl',
 ];
 
 export const defaultNS = 'translation';

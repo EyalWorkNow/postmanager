@@ -4014,7 +4014,7 @@
   "schedule_fetch_failed": "Falha ao carregar agenda",
   "usage_fetch_failed": "Falha ao carregar uso",
   "ai_usage_fetch_failed": "Falha ao carregar uso de IA",
-  "dashboard_date_format": "dddd, D de MMMM",
+  "dashboard_date_format": "dddd, D [de] MMMM",
   "schedule_day_abbrev_format": "ddd",
   "schedule_day_number_format": "D",
   "chart_date_format": "D/M",
