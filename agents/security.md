@@ -148,9 +148,9 @@ enforcement point (exact file/symbol). Cross-refs: `agents/backend.md`,
   routes and **per (handler, client IP)** only for unauthenticated ones; `clientIp` comes
   from `X-Forwarded-For` via `TRUST_PROXY_HOPS` (never blanket-trusted).
 - Sensitive routes carry tighter per-minute `@Throttle()` overrides (login 10/min,
-  register 5/min, AI 10-30/min — comment :62-68). Endpoints the frontend **polls** at a
-  few seconds (job status, notifications) must raise the hourly cap instead — a 5s poll is
-  720/h and blows the 600/h default on its own.
+  register 5/min, AI 10-30/min, billing native verify 10/min — comment :62-68). Endpoints the
+  frontend **polls** at a few seconds (job status, notifications) must raise the hourly cap
+  instead — a 5s poll is 720/h and blows the 600/h default on its own.
 - CopilotKit `/copilot/chat` is policy-, guardrail- and budget-gated:
   `@CheckPolicies([AuthorizationActions.Create, Sections.MCP])`, `AiGuardMiddleware`
   (reads user messages out of the `{ method, params, body }` single-route envelope), and the
@@ -161,12 +161,14 @@ enforcement point (exact file/symbol). Cross-refs: `agents/backend.md`,
   adapter**: since `@copilotkit/runtime` 1.69 the single-route transport never calls
   `serviceAdapter.process()`, so any gate wrapped around it is dead code (Sentry
   POSTMILL-APP-D) — never reintroduce one.
-
-## NOT_SECURED — dev-only toggle The budget check is two-layered: the org-wide
+- The budget check is two-layered: the org-wide
   ceiling (`Organization.aiBudget*`, reason `org_budget_exceeded`, applies even when the call
   resolves no single provider) and the per-provider cap (`provider_budget_exceeded`); both map to
   **429** with `{ error: 'BudgetExceeded', message: <reason> }` so the frontend's
   `ai-error-display` recognises it.
+
+## NOT_SECURED — dev-only toggle
+
 - `NOT_SECURED` relaxes transport hardening **only when
   `NODE_ENV === 'development'`**: `notSecuredDev = NOT_SECURED && NODE_ENV ===
   'development'` skips helmet (CSP/HSTS/frameguard/noSniff) (`main.ts:127-161`) and
