@@ -11,7 +11,7 @@ const LOCALES_DIR = path.resolve(
   __dirname,
   '../../../../react-shared-libraries/src/translation/locales'
 );
-const UI_LOCALES = ['ar', 'de', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'ru', 'tr', 'vi', 'zh'];
+const UI_LOCALES = ['ar', 'de', 'es', 'fr', 'id', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'ru', 'tr', 'vi', 'zh'];
 
 const load = (locale: string): Record<string, string> =>
   JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, locale, 'translation.json'), 'utf8'));
@@ -28,7 +28,7 @@ describe('i18n guard', () => {
     expect(LANGUAGE_CODES).not.toContain('bn');
   });
 
-  it('ships exactly en + 12 UI locale files, all valid JSON', () => {
+  it('ships exactly en + 15 UI locale files, all valid JSON', () => {
     const dirs = fs
       .readdirSync(LOCALES_DIR, { withFileTypes: true })
       .filter((d) => d.isDirectory())

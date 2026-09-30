@@ -18,6 +18,9 @@ export const LANGUAGE_CODES = [
   'ar',
   'tr',
   'vi',
+  'nl',
+  'id',
+  'pl',
 ] as const;
 
 export type LanguageCode = (typeof LANGUAGE_CODES)[number];
