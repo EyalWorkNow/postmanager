@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { SubscriptionService } from '@postmill-ai/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { PaymentsService } from '@postmill-ai/nestjs-libraries/payments/payments.service';
 import { GetOrgFromRequest } from '@postmill-ai/nestjs-libraries/user/org.from.request';
@@ -240,6 +241,7 @@ export class BillingController {
   /** Mobile app hands over a store purchase; the server verifies it with the store. */
   @Post('/native/verify')
   @RequirePermission('billing', 'manage')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async verifyNativePurchase(
     @GetOrgFromRequest() org: Organization,
     @Body() body: NativeVerifyDto
