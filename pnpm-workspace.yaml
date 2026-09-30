@@ -70,10 +70,10 @@ overrides:
   # pin; parent-scoped so direct postcss specifiers (^8.5.22) are untouched — an
   # unscoped selector override breaks CI's frozen-lockfile specifier comparison.
   'next>postcss': '>=8.5.12 <9'
-  # nodemailer <9.1.0: high raw-option bypass of disableFileAccess/disableUrlAccess enabling
-  # SSRF (GHSA-p6gq-j5cr-w38f, patched 9.0.1) and high quadratic O(n²) header parsing
-  # (GHSA-2x7j-588g-ccc2, patched 9.1.0). Bump to patched 9.1.x (same major).
-  'nodemailer@<9.1.0': '>=9.1.0 <10'
+  # nodemailer <=10.0.5: high quadratic backtracking in the addressparser free-text fallback
+  # (GHSA-v53p-9fqp-m79j, patched 10.0.6); earlier GHSA-p6gq-j5cr-w38f / GHSA-2x7j-588g-ccc2
+  # are closed by the same floor. Direct deps are on ^10.0.13 (v10's only break is Node >=20).
+  'nodemailer@<10.0.6': '>=10.0.6 <11'
   # svgo >=3.0.0 <3.3.5: high — removeScripts allows executable links through namespace
   # and control characters (GHSA-w27v-7q3p-w38r), pulled by @svgr/webpack ->
   # @svgr/plugin-svgo. Bump vulnerable 3.x to patched 3.3.x (same major).
@@ -85,16 +85,24 @@ overrides:
   # piscina <=4.9.2: high prototype-pollution gadget → RCE (GHSA-x9g3-xrwr-cwfg), pulled by
   # @swc/cli. Bump to patched 4.9.x (same major).
   'piscina@<=4.9.2': '>=4.9.3 <5'
-  # undici <6.27.0: high WebSocket fragment-count DoS (GHSA-vxpw-j846-p89q), pulled by
-  # @qdrant/js-client-rest (pins ~6.26). Bump vulnerable <6.27.0 to patched 6.27.x (same major).
-  'undici@<6.27.0': '>=6.27.0 <7'
+  # undici <6.28.1: high WebSocket fragment-count DoS (GHSA-vxpw-j846-p89q) and
+  # GHSA-rfgv-xxqx-mfg5 (patched 6.28.1), pulled by @qdrant/js-client-rest. Same major.
+  'undici@<6.28.1': '>=6.28.1 <7'
   # undici >=7.0.0 <7.28.0: high WebSocket DoS (GHSA-vxpw-j846-p89q) and SOCKS5
   # cross-origin request routing (GHSA-hm92-r4w5-c3mj), pulled by jsdom@29.1 via vitest.
-  # Bump vulnerable 7.x to patched 7.28.x (same major).
-  'undici@>=7.0.0 <7.29.0': '>=7.29.0 <8'
+  # GHSA-rfgv-xxqx-mfg5 / GHSA-w293-vg96-wgc3 raise the floor to 7.29.1 (also via
+  # @copilotkit/runtime). Same major.
+  'undici@>=7.0.0 <7.29.1': '>=7.29.1 <8'
   # undici >=8.0.0 <8.5.0: high WebSocket DoS (GHSA-vxpw-j846-p89q, GHSA-38rv-x7px-6hhq) and
-  # TLS cert validation bypass (GHSA-vmh5-mc38-953g), direct dependency. Bump to patched 8.5.x.
-  'undici@>=8.0.0 <8.9.0': '>=8.9.0 <9'
+  # TLS cert validation bypass (GHSA-vmh5-mc38-953g), direct dependency; GHSA-rfgv-xxqx-mfg5 /
+  # GHSA-vp8m-p9jh-q5pm raise the floor to 8.10.2. Same major.
+  'undici@>=8.0.0 <8.10.2': '>=8.10.2 <9'
+  # engine.io >=6.6.0 <6.6.10: high protocol-revision-mismatch DoS (GHSA-2gc4-cqfq-p2gv),
+  # pulled by apps/backend socket.io. Bump to patched 6.6.x (same major).
+  'engine.io@>=6.6.0 <6.6.10': '>=6.6.10 <7'
+  # @xhmikosr/decompress >=11.0.0 <=11.1.3: critical (GHSA-hrh2-vp3x-79xf), pulled by @swc/cli
+  # (dev tooling). Bump to patched 11.1.4 (same major).
+  '@xhmikosr/decompress@>=11.0.0 <11.1.4': '>=11.1.4 <12'
   # ws <8.21.0: high memory-exhaustion DoS from tiny fragments (GHSA-96hv-2xvq-fx4p), pulled by
   # @toruslabs/solana-embed -> socket.io-client -> engine.io-client. Bump to patched 8.21.x.
   'ws@<8.21.0': '>=8.21.0 <9'
@@ -129,9 +137,9 @@ overrides:
   # the single source of truth for overrides.
   '@opentelemetry/propagator-jaeger@<2.9.0': '^2.9.0'
   'axios@>=1.15.2 <1.18.0': '^1.18.0'
-  'brace-expansion@1': '~1.1.18'
-  'brace-expansion@2': '~2.1.4'
-  'brace-expansion@>=3.0.0 <5.0.9': '^5.0.9'
+  'brace-expansion@1': '~1.1.20'
+  'brace-expansion@2': '~2.1.6'
+  'brace-expansion@>=3.0.0 <5.0.11': '^5.0.11'
   'fast-uri@>=3.0.0 <3.1.6': '^3.1.6'
   'immutable@5': '^5.1.8'
   'js-yaml@>=4.0.0 <4.3.1': '^4.3.1'
@@ -184,7 +192,8 @@ auditConfig:
     # blocker was 5.0.8 being ESM-only with a named `expand` export, which broke the
     # CJS `require('brace-expansion')` in minimatch@3/glob@7. 5.0.9 restores the
     # callable default export, so the three lines are now bumped in place —
-    # 1.1.18 / 2.1.4 / 5.0.9 in `overrides` above — and the advisory is genuinely
+    # 1.1.20 / 2.1.6 / 5.0.11 in `overrides` above (floors raised for GHSA-6j4f-fj2g-mc7p /
+    # GHSA-qhr7-859c-m2p7) — and the advisory is genuinely
     # fixed rather than ignored. Verified by a full eslint run over the repo.)
     #
     # image-size <=2.0.2 ICNS and JXL/HEIF parser DoS (GHSA-w3rx-r6r6-pgpr,
