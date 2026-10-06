@@ -20,6 +20,21 @@ const withBundleAnalyzerFn: (config: NextConfig) => NextConfig =
 // deployments already covered by 'self'; adding it explicitly is harmless.
 const isDev = process.env.NODE_ENV === 'development';
 
+// On Vercel (vercel.json services: backend at /api on the same domain) the
+// backend URL follows from the deployment itself, so an unset
+// NEXT_PUBLIC_BACKEND_URL is derived instead of failing the build: production
+// → the project's production domain, previews → their own deployment URL.
+// Set before Next compiles, so it is inlined like any NEXT_PUBLIC_ value.
+if (!process.env.NEXT_PUBLIC_BACKEND_URL && process.env.VERCEL) {
+  const host =
+    process.env.VERCEL_ENV === 'production'
+      ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+      : process.env.VERCEL_URL;
+  if (host) {
+    process.env.NEXT_PUBLIC_BACKEND_URL = `https://${host}/api`;
+  }
+}
+
 const backendOrigin = (() => {
   try {
     return new URL(process.env.NEXT_PUBLIC_BACKEND_URL!).origin;
