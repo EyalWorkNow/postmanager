@@ -2,9 +2,12 @@
 #
 # Same build as the root Dockerfile minus nginx and the Next.js frontend: on
 # Vercel the frontend is its own service and public routing (/api → backend,
-# prefix stripped by a request.path transform) replaces nginx. Build context is
-# the repo root (the service root in vercel.json is "."), because the backend
-# compiles workspace libraries.
+# prefix stripped by a request.path transform) replaces nginx.
+#
+# This file lives at the repo root on purpose: Vercel uses the Dockerfile's own
+# directory as the build context, and the backend build needs the whole
+# workspace (pnpm-lock.yaml, libraries/*). From apps/backend the install failed
+# with ERR_PNPM_NO_LOCKFILE. The root .dockerignore applies.
 
 # ---------- builder ----------
 FROM node:24.19.0-bookworm-slim AS builder
