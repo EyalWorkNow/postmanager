@@ -1,0 +1,66 @@
+# Backend-only image for the Vercel `backend` service (vercel.json).
+#
+# Same build as the root Dockerfile minus nginx and the Next.js frontend: on
+# Vercel the frontend is its own service and public routing (/api → backend,
+# prefix stripped by a request.path transform) replaces nginx. Build context is
+# the repo root (the service root in vercel.json is "."), because the backend
+# compiles workspace libraries.
+
+# ---------- builder ----------
+FROM node:24.19.0-bookworm-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    make \
+    python3-pip \
+    bash \
+    ca-certificates \
+&& rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+RUN npm --no-update-notifier --no-fund --global install pnpm@10.34.4
+
+WORKDIR /app
+COPY . /app
+
+RUN pnpm install --frozen-lockfile
+RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm run build:backend
+RUN CI=true pnpm prune --prod
+
+# ---------- runtime ----------
+FROM node:24.19.0-bookworm-slim AS runtime
+
+# chromium + ffmpeg: the in-process video renderer; the rest are native libs
+# canvas links against. Same set as the root Dockerfile, without nginx.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    ffmpeg \
+    fonts-liberation \
+    fonts-dejavu-core \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libjpeg62-turbo \
+    libgif7 \
+    librsvg2-2 \
+    ca-certificates \
+&& rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV NODE_ENV=production
+ENV TZ=UTC
+# Vercel routes container traffic to $PORT (default 80). An unprivileged user
+# cannot bind 80, so the project must set PORT=3000 (Project → Environment
+# Variables); this default keeps the image and that setting in agreement.
+ENV PORT=3000
+
+RUN addgroup --system app \
+ && adduser --system --ingroup app --home /app --shell /usr/sbin/nologin app
+
+WORKDIR /app
+COPY --from=builder --chown=app:app /app /app
+USER app
+
+EXPOSE 3000
+CMD ["node", "--experimental-require-module", "/app/apps/backend/dist/apps/backend/src/main.js"]

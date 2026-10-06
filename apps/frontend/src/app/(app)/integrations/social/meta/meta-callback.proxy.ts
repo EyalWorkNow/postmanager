@@ -7,7 +7,7 @@
  */
 
 export const backendBase = (): string =>
-  (process.env.BACKEND_INTERNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '');
+  (process.env.BACKEND_URL || process.env.BACKEND_INTERNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '');
 
 export async function forwardMetaCallback(request: Request, path: string): Promise<Response> {
   const base = backendBase();
