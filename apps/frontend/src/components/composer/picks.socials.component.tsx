@@ -13,6 +13,30 @@ import { DropdownArrowIcon } from '@postmill-ai/frontend/components/ui/icons';
 
 const CHANNEL_SELECTOR_THRESHOLD = 4;
 
+// The networks customers market on come first; the rest follow alphabetically.
+const NETWORK_ORDER = ['facebook', 'instagram', 'instagram-standalone', 'tiktok', 'linkedin-page', 'linkedin'];
+const NETWORK_NAMES: Record<string, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  'instagram-standalone': 'Instagram',
+  tiktok: 'TikTok',
+  linkedin: 'LinkedIn',
+  'linkedin-page': 'LinkedIn',
+  x: 'X',
+  youtube: 'YouTube',
+  pinterest: 'Pinterest',
+  threads: 'Threads',
+};
+const networkRank = (id: string) => {
+  const i = NETWORK_ORDER.indexOf(id);
+  return i === -1 ? NETWORK_ORDER.length : i;
+};
+
+// Connected is not the same as able to publish: a channel whose token expired
+// stays selectable (the draft keeps working) but says so.
+const needsReconnect = (i: Integrations) =>
+  !!(i as Integrations & { refreshNeeded?: boolean }).refreshNeeded;
+
 const PlatformAvatar: FC<{
   integration: Integrations;
   selected: boolean;
@@ -97,8 +121,20 @@ export const PicksSocialsComponent: FC<{
       list.push(integration);
       map.set(key, list);
     }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+    return Array.from(map.entries()).sort(
+      ([a], [b]) => networkRank(a) - networkRank(b) || a.localeCompare(b)
+    );
   }, [filteredIntegrations]);
+
+  const networkLabel = useCallback(
+    (id: string) => {
+      const name = NETWORK_NAMES[id] || id.charAt(0).toUpperCase() + id.slice(1);
+      if (id === 'linkedin-page') return `${name} · ${t('company_page', 'Company page')}`;
+      if (id === 'instagram-standalone') return `${name} · ${t('direct_connection', 'Direct')}`;
+      return name;
+    },
+    [t]
+  );
 
   const toggle = useCallback(
     (integration: Integrations) => {
@@ -106,6 +142,17 @@ export const PicksSocialsComponent: FC<{
       addOrRemoveSelectedIntegration(integration, {});
     },
     [addOrRemoveSelectedIntegration, existingData.integration, locked]
+  );
+
+  // Select every account of a network, or clear them all when all are selected.
+  const toggleGroup = useCallback(
+    (items: Integrations[]) => {
+      const allSelected = items.every((i) => isSelected(i.id));
+      for (const integration of items) {
+        if (allSelected === isSelected(integration.id)) toggle(integration);
+      }
+    },
+    [isSelected, toggle]
   );
 
   // Click-outside + Escape close, mirroring CreateMenu/UserAvatarMenu.
@@ -184,10 +231,17 @@ export const PicksSocialsComponent: FC<{
           )}
           {selectedList.length > 0 && (
             <span className="whitespace-nowrap">
-              {selectedList.length}{' '}
-              {selectedList.length === 1
-                ? t('channel', 'channel')
-                : t('channels', 'Channels')}
+              {t('accounts_selected', '{{count}} accounts selected', {
+                count: selectedList.length,
+              })}
+            </span>
+          )}
+          {selectedList.some(({ integration }) => needsReconnect(integration)) && (
+            <span
+              aria-label={t('some_accounts_need_reconnect', 'Some selected accounts need to be reconnected')}
+              className="text-amber-600 dark:text-amber-400"
+            >
+              ⚠
             </span>
           )}
           <DropdownArrowIcon rotated={open} />
@@ -197,12 +251,12 @@ export const PicksSocialsComponent: FC<{
           <div
             role="listbox"
             aria-label={t('channels', 'Channels')}
-            className="absolute z-300 top-[calc(100%+8px)] left-0 w-[320px] max-h-[360px] bg-newBgColorInner border border-newTextColor/10 rounded-[12px] menu-shadow flex flex-col"
+            className="absolute z-300 top-[calc(100%+8px)] start-0 w-[360px] max-w-[90vw] max-h-[420px] bg-newBgColorInner border border-newTextColor/10 rounded-[12px] menu-shadow flex flex-col"
           >
             <div className="p-[12px] border-b border-newTextColor/10">
               <div className="relative">
                 <svg
-                  className="absolute left-[12px] top-1/2 -translate-y-1/2 w-[16px] h-[16px] text-newTextColor/60"
+                  className="absolute inset-s-[12px] top-1/2 -translate-y-1/2 w-[16px] h-[16px] text-newTextColor/60"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -219,7 +273,7 @@ export const PicksSocialsComponent: FC<{
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={t('search_channels', 'Search channels...')}
-                  className="w-full h-[40px] pl-[38px] pr-[12px] rounded-[8px] bg-newBgColorInner border border-newColColor text-[14px] text-textColor outline-hidden focus:border-[#2B5CD3]"
+                  className="w-full h-[40px] ps-[38px] pe-[12px] rounded-[8px] bg-newBgColorInner border border-newColColor text-[14px] text-textColor outline-hidden focus:border-[#2B5CD3]"
                 />
               </div>
             </div>
@@ -229,11 +283,47 @@ export const PicksSocialsComponent: FC<{
                   {t('no_channels_found', 'No channels found')}
                 </div>
               )}
-              {grouped.map(([platform, items]) => (
+              {grouped.map(([platform, items]) => {
+                const selectedCount = items.filter((i) => isSelected(i.id)).length;
+                const groupState =
+                  selectedCount === 0 ? 'none' : selectedCount === items.length ? 'all' : 'some';
+                return (
                 <div key={platform} className="mb-[8px]">
-                  <div className="sticky top-0 bg-newBgColorInner text-[11px] uppercase tracking-wider text-newTableText px-[8px] py-[4px] z-1">
-                    {platform}
-                  </div>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={groupState === 'all' ? true : groupState === 'some' ? 'mixed' : false}
+                    onClick={() => toggleGroup(items)}
+                    className="sticky top-0 z-1 w-full flex items-center gap-[8px] bg-newBgColorInner px-[8px] py-[6px] rounded-[6px] hover:bg-boxHover"
+                  >
+                    <span
+                      className={clsx(
+                        'w-[16px] h-[16px] rounded-[4px] border flex items-center justify-center shrink-0',
+                        groupState === 'none' ? 'border-newColColor' : 'bg-[#2B5CD3] border-[#2B5CD3]'
+                      )}
+                      aria-hidden="true"
+                    >
+                      {groupState === 'all' && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12l5 5L20 7" />
+                        </svg>
+                      )}
+                      {groupState === 'some' && <span className="w-[8px] h-[2px] bg-white rounded-full" />}
+                    </span>
+                    <SafeImage
+                      src={`/icons/platforms/${platform}.png`}
+                      className="rounded-[4px] min-w-[16px] min-h-[16px]"
+                      alt=""
+                      width={16}
+                      height={16}
+                    />
+                    <span className="flex-1 text-start text-[13px] font-[600] text-textColor">
+                      {networkLabel(platform)}
+                    </span>
+                    <span className="text-[12px] text-newTableText" dir="ltr">
+                      {selectedCount}/{items.length}
+                    </span>
+                  </button>
                   <div className="flex flex-col gap-[2px]">
                     {items.map((integration) => {
                       const selected = isSelected(integration.id);
@@ -245,7 +335,7 @@ export const PicksSocialsComponent: FC<{
                           aria-selected={selected}
                           onClick={() => toggle(integration)}
                           className={clsx(
-                            'flex items-center gap-[10px] w-full px-[8px] py-[8px] rounded-[8px] text-left transition-colors',
+                            'flex items-center gap-[10px] w-full ps-[16px] pe-[8px] py-[8px] rounded-[8px] text-start transition-colors',
                             selected
                               ? 'bg-[#2B5CD3]/15 text-textColor'
                               : 'hover:bg-boxHover text-textColor'
@@ -279,22 +369,25 @@ export const PicksSocialsComponent: FC<{
                             selected={false}
                             size={28}
                           />
-                          <span className="flex-1 text-[13px] truncate">
-                            {integration.name}
+                          <span className="flex-1 min-w-0 flex flex-col">
+                            <span className="text-[13px] truncate">{integration.name}</span>
+                            {needsReconnect(integration) ? (
+                              <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                                ⚠ {t('needs_reconnect_short', 'Needs reconnecting before it can publish')}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-newTableText">
+                                ✓ {t('account_connected', 'Connected')}
+                              </span>
+                            )}
                           </span>
-                          <SafeImage
-                            src={`/icons/platforms/${integration.identifier}.png`}
-                            className="rounded-[4px] min-w-[16px] min-h-[16px]"
-                            alt={integration.identifier}
-                            width={16}
-                            height={16}
-                          />
                         </button>
                       );
                     })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -319,7 +412,15 @@ export const PicksSocialsComponent: FC<{
                     'data-tooltip-content': integration.name,
                   })}
                 >
-                  <div
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={selected}
+                    aria-label={
+                      needsReconnect(integration)
+                        ? `${integration.name} · ${t('needs_reconnect_short', 'Needs reconnecting before it can publish')}`
+                        : integration.name
+                    }
                     onClick={() => toggle(integration)}
                     className={clsx(
                       'cursor-pointer border-2 relative rounded-full flex justify-center items-center bg-newTableHeader filter transition-all duration-500',
@@ -328,11 +429,16 @@ export const PicksSocialsComponent: FC<{
                         : 'grayscale border-transparent'
                     )}
                   >
+                    {needsReconnect(integration) && (
+                      <span className="absolute -top-[4px] -end-[4px] z-10 w-[16px] h-[16px] rounded-full bg-amber-500 text-black text-[10px] font-bold flex items-center justify-center" aria-hidden="true">
+                        !
+                      </span>
+                    )}
                     <PlatformAvatar
                       integration={integration}
                       selected={selected}
                     />
-                  </div>
+                  </button>
                 </div>
               );
             })}

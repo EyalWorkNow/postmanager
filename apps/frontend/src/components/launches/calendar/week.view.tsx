@@ -11,7 +11,7 @@ import i18next from 'i18next';
 import { useT } from '@postmill-ai/react/translation/get.transation.service.client';
 
 export const WeekView = () => {
-  const { startDate, endDate } = useCalendar();
+  const { startDate, endDate, weekMode } = useCalendar();
   const t = useT();
 
   // Recompute day names when the UI language changes (i18next is non-reactive).
@@ -40,6 +40,58 @@ export const WeekView = () => {
     }
     return days;
   }, [resolvedLanguage, startDate]);
+
+  const today = newDayjs().format('L');
+
+  // Default: a compact week — one column of time-sorted cards per day, no empty
+  // hour slots. The hour grid below stays available as the 'hours' mode.
+  if (weekMode !== 'hours') {
+    return (
+      <div className="flex flex-col text-textColor flex-1">
+        <div className="flex-1 relative">
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] grid-rows-[62px_minmax(0,1fr)] gap-[4px] absolute inset-0">
+            {localizedDays.map((day) => {
+              const isToday = day.day === today;
+              return (
+                <div
+                  key={day.name}
+                  className={clsx(
+                    'p-2 text-center bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px]',
+                    isToday && 'ring-2 ring-newTableTextFocused'
+                  )}
+                >
+                  <div className="text-[14px] font-[500] text-newTableText">
+                    {day.name}
+                  </div>
+                  <div
+                    className={clsx(
+                      'text-[14px] font-[600] flex items-center justify-center gap-[6px]',
+                      isToday && 'text-newTableTextFocused'
+                    )}
+                  >
+                    {day.date.format('D MMM')}
+                    {isToday && (
+                      <span className="text-[11px] font-[600] px-[6px] rounded-full bg-newTableTextFocused/15">
+                        {t('today', 'Today')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {localizedDays.map((day) => (
+              <div
+                key={`${startDate}-${day.date.format('YYYY-MM-DD')}`}
+                className="min-h-0 overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor"
+              >
+                <CalendarColumn getDate={day.date.endOf('day')} wholeDay />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col text-textColor flex-1">

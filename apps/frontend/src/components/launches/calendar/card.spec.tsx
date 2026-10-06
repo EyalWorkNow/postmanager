@@ -135,10 +135,9 @@ describe('CalendarItem card layout (C2)', () => {
         <CalendarItem {...baseProps()} post={statsPost()} />
       );
 
-      // Status dot: green = published, state carried in the tooltip
-      const dot = container.querySelector('[data-tooltip-content="Published"]');
-      expect(dot).toBeTruthy();
-      expect(dot!.className).toContain('bg-green-500');
+      // Status label: icon + word
+      expect(container).toBeTruthy();
+      expect(screen.getByText('Published')).toBeTruthy();
 
       // Identity row: channel name; no profile → no handle segment, and never
       // a literal '@username' placeholder.

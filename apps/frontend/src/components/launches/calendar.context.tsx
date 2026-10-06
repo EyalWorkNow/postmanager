@@ -24,6 +24,7 @@ import { newDayjs } from '@postmill-ai/frontend/components/layout/set.timezone';
 import { timer } from '@postmill-ai/helpers/utils/timer';
 import { expandPosts } from '@postmill-ai/helpers/utils/posts.list.minify';
 extend(isoWeek);
+import { startOfWeek, endOfWeek } from './calendar/week-start';
 extend(weekOfYear);
 
 export type ListStateFilter = 'all' | 'scheduled' | 'draft' | 'published';
@@ -45,8 +46,8 @@ export const DEFAULT_METRIC_FILTERS: MetricFilters = {
 };
 
 export const CalendarContext = createContext({
-  startDate: newDayjs().startOf('isoWeek').format('YYYY-MM-DD'),
-  endDate: newDayjs().endOf('isoWeek').format('YYYY-MM-DD'),
+  startDate: startOfWeek(newDayjs()).format('YYYY-MM-DD'),
+  endDate: endOfWeek(newDayjs()).format('YYYY-MM-DD'),
   loading: true,
   error: null as any,
   sets: [] as { name: string; id: string; content: string[] }[],
@@ -96,6 +97,12 @@ export const CalendarContext = createContext({
   // views encode this in `display`; list keeps it here so the same nav drives both).
   listRangeMode: 'week' as 'day' | 'week' | 'month',
   setListRangeMode: (mode: 'day' | 'week' | 'month') => {
+    /** empty **/
+  },
+  // Week display: 'compact' = one column of cards per day (default), 'hours' =
+  // the detailed hour-by-hour grid for precise slot planning.
+  weekMode: 'compact' as 'compact' | 'hours',
+  setWeekMode: (mode: 'compact' | 'hours') => {
     /** empty **/
   },
   engagementFilter: 'all' as EngagementFilter,
@@ -199,8 +206,8 @@ function getDateRange(display: string, referenceDate?: string) {
       };
     case 'week':
       return {
-        startDate: date.startOf('isoWeek').format('YYYY-MM-DD'),
-        endDate: date.endOf('isoWeek').format('YYYY-MM-DD'),
+        startDate: startOfWeek(date).format('YYYY-MM-DD'),
+        endDate: endOfWeek(date).format('YYYY-MM-DD'),
       };
     case 'month':
       return {
@@ -209,8 +216,8 @@ function getDateRange(display: string, referenceDate?: string) {
       };
     default:
       return {
-        startDate: date.startOf('isoWeek').format('YYYY-MM-DD'),
-        endDate: date.endOf('isoWeek').format('YYYY-MM-DD'),
+        startDate: startOfWeek(date).format('YYYY-MM-DD'),
+        endDate: endOfWeek(date).format('YYYY-MM-DD'),
       };
   }
 }
@@ -224,6 +231,8 @@ export const CalendarWeekProvider: FC<{
   const [trendings] = useState<string[]>([]);
   const searchParams = useSearchParams();
   const [displaySaved, setDisplaySaved] = useCookie('calendar-display', 'week');
+  const [weekModeSaved, setWeekModeSaved] = useCookie('calendar-week-mode', 'compact');
+  const weekMode = (weekModeSaved === 'hours' ? 'hours' : 'compact') as 'compact' | 'hours';
   const display = searchParams.get('display') || displaySaved;
 
   // List view state — the list now renders the same date-range posts as the
@@ -658,6 +667,8 @@ export const CalendarWeekProvider: FC<{
         setListState,
         listRangeMode,
         setListRangeMode,
+        weekMode,
+        setWeekMode: setWeekModeSaved,
         engagementFilter,
         setEngagementFilter,
         channelFilter,

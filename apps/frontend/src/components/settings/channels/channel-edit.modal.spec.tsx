@@ -89,7 +89,7 @@ const EDIT_CONFIG = {
 
 function renderForm(
   platformConfigured: boolean,
-  opts: { withSetup?: boolean; edit?: boolean } = {}
+  opts: { withSetup?: boolean; edit?: boolean; simple?: boolean } = {}
 ) {
   const onClose = vi.fn();
   const onSaved = vi.fn();
@@ -98,6 +98,9 @@ function renderForm(
     // must not see another test's cached response.
     <SWRConfig value={{ provider: () => new Map() }}>
       <ChannelConfigForm
+        // instagram-standalone is a main network: it opens on the simple
+        // one-button screen; these specs cover the technical form unless asked.
+        startTechnical={!opts.simple}
         identifier="instagram-standalone"
         providerName="Instagram (Standalone)"
         platformConfigured={platformConfigured}
@@ -195,27 +198,31 @@ describe('ChannelConfigForm layout modes', () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
   });
 
+  // instagram-standalone is a featured network: its plain-language guide
+  // replaces the adapter's labels ("Instagram App ID", "Return address …").
   it('platform-app mode collapses setup steps, callback and scopes under Advanced', () => {
     renderForm(true, { withSetup: true });
     expect(screen.queryByText('How to set this up')).toBeNull();
-    expect(screen.queryByText('Callback URL')).toBeNull();
+    expect(screen.queryByText(/Return address/)).toBeNull();
     expect(screen.queryByText("Permissions we'll request")).toBeNull();
-    expect(screen.queryByText('App ID')).toBeNull();
+    expect(screen.queryByText('Instagram App ID')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /Advanced/ }));
     expect(screen.getByText('How to set this up')).toBeTruthy();
-    expect(screen.getByText('Callback URL')).toBeTruthy();
+    expect(screen.getByText(/Return address/)).toBeTruthy();
     expect(screen.getByText("Permissions we'll request")).toBeTruthy();
-    expect(screen.getByText('App ID')).toBeTruthy();
+    expect(screen.getByText('Instagram App ID')).toBeTruthy();
   });
 
-  it('BYO mode shows setup steps, callback, scopes and credentials as primary content', () => {
+  it('BYO mode leads with the guide, keys and return address; scopes go under Advanced', () => {
     renderForm(false, { withSetup: true });
     expect(screen.getByText('How to set this up')).toBeTruthy();
-    expect(screen.getByText('Callback URL')).toBeTruthy();
+    expect(screen.getByText(/Return address/)).toBeTruthy();
+    expect(screen.getByText('Instagram App ID')).toBeTruthy();
+    expect(screen.getByText('Protected and local')).toBeTruthy();
+    expect(screen.queryByText("Permissions we'll request")).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }));
     expect(screen.getByText("Permissions we'll request")).toBeTruthy();
-    expect(screen.getByText('App ID')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Advanced/ })).toBeNull();
   });
 });
 
@@ -268,10 +275,42 @@ describe('ChannelConfigForm platform-app connect', () => {
     expect(button.className).toContain('whitespace-nowrap');
     unmount();
 
+    // Own-app (BYO) sets connect from the form too, via "Save and connect".
     renderForm(false, { withSetup: true });
     expect(
       screen.queryByRole('button', { name: 'Connect with Instagram (Standalone)' })
     ).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save and connect to Instagram' })).toBeTruthy();
+  });
+
+  it('BYO "Save and connect" needs both keys, then saves the set enabled and opens OAuth', async () => {
+    mockConnectSequence({ url: 'https://oauth.example/auth' });
+    openSpy.mockReturnValue({ closed: false });
+    renderForm(false, { withSetup: true });
+    const connect = screen.getByRole('button', { name: 'Save and connect to Instagram' });
+
+    fireEvent.click(connect);
+    expect(mockToast).toHaveBeenCalledWith(
+      'Fill in both app keys first (following the steps above).',
+      'warning'
+    );
+    expect(mockFetch.mock.calls.some(([u]) => u === '/channels/config')).toBe(false);
+
+    fireEvent.change(document.querySelector('input[name="cred_clientId_instagram-standalone"]')!, {
+      target: { value: '123' },
+    });
+    fireEvent.change(document.querySelector('input[name="cred_clientSecret_instagram-standalone"]')!, {
+      target: { value: 'secret' },
+    });
+    fireEvent.click(connect);
+    await waitFor(() => expect(openSpy).toHaveBeenCalled());
+    const create = mockFetch.mock.calls.find(([u]) => u === '/channels/config');
+    expect(JSON.parse((create![1] as RequestInit).body as string)).toMatchObject({
+      enabled: true,
+      clientId: '123',
+      clientSecret: 'secret',
+    });
+    expect(openSpy.mock.calls[0][0]).toBe('https://oauth.example/auth');
   });
 
   it('shows the connected channel and offers Connect another account', async () => {
@@ -764,6 +803,7 @@ describe('ChannelConfigForm — shared /integrations/list SWR key contract', () 
     render(
       <SWRConfig value={{ provider: () => cache }}>
         <ChannelConfigForm
+          startTechnical
           identifier="instagram-standalone"
           providerName="Instagram (Standalone)"
           platformConfigured={true}
@@ -782,5 +822,48 @@ describe('ChannelConfigForm — shared /integrations/list SWR key contract', () 
       expect(Array.isArray(cached.data)).toBe(true);
       expect(cached.data[0].name).toBe('IG');
     });
+  });
+});
+
+describe('ChannelConfigForm simple mode (main networks)', () => {
+  const openSpy = vi.fn();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.open = openSpy;
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/integrations/list') {
+        return Promise.resolve({ ok: true, json: async () => ({ integrations: [] }) });
+      }
+      if (url === '/channels/config') {
+        return Promise.resolve({ ok: true, json: async () => ({ id: 'cfg-1' }) });
+      }
+      if (url.startsWith('/integrations/social/')) {
+        return Promise.resolve({ ok: true, json: async () => ({ url: 'https://oauth.example/auth' }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+  });
+  afterEach(() => {
+    delete (window as { open?: unknown }).open;
+  });
+
+  it('with a ready app shows one big connect button and no developer fields', async () => {
+    openSpy.mockReturnValue({ closed: false });
+    renderForm(true, { withSetup: true, simple: true });
+    expect(screen.queryByText('Instagram App ID')).toBeNull();
+    expect(screen.queryByText(/Return address/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Connect with Instagram' }));
+    await waitFor(() => expect(openSpy).toHaveBeenCalled());
+    expect(openSpy.mock.calls[0][0]).toBe('https://oauth.example/auth');
+  });
+
+  it('without an app explains it is not switched on and offers the installer link', () => {
+    renderForm(false, { withSetup: true, simple: true });
+    expect(screen.getByText('Instagram is not switched on yet')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy a link to send to the installer' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Connect with Instagram' })).toBeNull();
+    // The technical setup is still one click away.
+    fireEvent.click(screen.getByRole('button', { name: /technical setup myself/ }));
+    expect(screen.getByText('Instagram App ID')).toBeTruthy();
   });
 });

@@ -15,6 +15,7 @@ import { DNDProvider } from '@postmill-ai/frontend/components/launches/helpers/d
 import { useT } from '@postmill-ai/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@postmill-ai/frontend/components/launches/helpers/use.integration.list';
 import { useAddProvider } from '@postmill-ai/frontend/components/launches/add.provider.component';
+import { ConnectFirstChannel } from '@postmill-ai/frontend/components/launches/connect-first-channel';
 import { useModals } from '@postmill-ai/frontend/components/layout/new-modal';
 
 // Kept as a shared export — imported by agents/agent.tsx.
@@ -236,24 +237,7 @@ export const LaunchesComponent = () => {
               </div>
             </div>
           ) : sortedIntegrations.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="flex flex-col gap-[12px] text-center max-w-[320px]">
-                <div className="font-[600] text-[20px]">
-                  {t('no_channels', 'No channels yet')}
-                </div>
-                <div className="text-[14px] text-textColor">
-                  {t('connect_your_accounts')}
-                </div>
-                <div>
-                  <button
-                    onClick={addChannel}
-                    className="bg-btnPrimary text-white px-[24px] py-[10px] rounded-[8px] text-[14px] cursor-pointer"
-                  >
-                    {t('add_channel', 'Add Channel')}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ConnectFirstChannel onMoreNetworks={addChannel} />
           ) : (
             <>
               <Filters />

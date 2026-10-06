@@ -1,6 +1,9 @@
 'use client';
 
 import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import clsx from 'clsx';
+import { featuredChannels, isFeatured } from './featured-channels';
 import useSWR, { useSWRConfig } from 'swr';
 import { useFetch } from '@postmill-ai/helpers/utils/custom.fetch';
 import { createFetchError } from '@postmill-ai/frontend/components/settings/shared/fetch-error';
@@ -255,10 +258,23 @@ const ProviderPicker: FC<{
   providers: ProviderCatalogItem[];
   catalog?: ProviderCatalogEntry[];
   onPick: (provider: ProviderCatalogItem) => void;
-}> = ({ providers, catalog, onPick }) => {
+  inline?: boolean;
+}> = ({ providers, catalog, onPick, inline }) => {
   const t = useT();
   const [search, setSearch] = useState('');
   const [selectedCaps, setSelectedCaps] = useState<CapabilityKey[]>([]);
+  const [showMore, setShowMore] = useState(false);
+  const featured = useMemo(
+    () => featuredChannels(t).filter((f) => providers.some((p) => p.identifier === f.identifier)),
+    [t, providers]
+  );
+  const pick = useCallback(
+    (identifier: string) => {
+      const p = providers.find((x) => x.identifier === identifier);
+      if (p) onPick(p);
+    },
+    [providers, onPick]
+  );
 
   // Version lifecycle from the public catalog (plan §7.5.8): surface the latest
   // selectable version + a sunset/retired pill so deprecated providers warn and
@@ -289,6 +305,7 @@ const ProviderPicker: FC<{
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return providers.filter((p) => {
+      if (isFeatured(p.identifier)) return false;
       if (q && !p.name.toLowerCase().includes(q) && !p.identifier.toLowerCase().includes(q)) {
         return false;
       }
@@ -300,7 +317,60 @@ const ProviderPicker: FC<{
   }, [providers, search, selectedCaps]);
 
   return (
-    <div className="flex flex-col gap-[12px] w-[520px] max-w-full">
+    <div className={clsx('flex flex-col gap-[16px] max-w-full', inline ? 'w-full' : 'w-[640px]')}>
+      <div className="flex flex-col gap-[4px]">
+        <div className="text-[14px] font-[600] text-textColor">
+          {t('fc_popular_title', 'Main networks')}
+        </div>
+        <div className="text-[13px] text-newTableText">
+          {t('fc_popular_sub', 'Choose a network — a short step-by-step guide will open.')}
+        </div>
+      </div>
+      <div className={clsx('grid gap-[10px] mobile:grid-cols-1', inline ? 'grid-cols-2 min-[1400px]:grid-cols-4' : 'grid-cols-2')}>
+        {featured.map((f) => (
+          <div
+            key={f.identifier}
+            className="flex flex-col rounded-[12px] border border-newTableBorder bg-newBgColorInner hover:border-btnPrimary transition-colors"
+          >
+            <button
+              type="button"
+              onClick={() => pick(f.identifier)}
+              className="flex items-center gap-[12px] p-[14px] text-start"
+            >
+              <ChannelProviderIcon identifier={f.identifier} name={f.title} size={40} />
+              <span className="flex flex-col min-w-0">
+                <span className="text-[15px] font-[600] text-textColor">{f.title}</span>
+                <span className="text-[12px] leading-[1.5] text-newTableText">{f.tagline}</span>
+              </span>
+            </button>
+            {f.alternative && (
+              <button
+                type="button"
+                onClick={() => pick(f.alternative!.identifier)}
+                className="text-start px-[14px] pb-[12px] -mt-[4px] group"
+              >
+                <span className="text-[12px] text-newTableText group-hover:text-textColor group-hover:underline">
+                  {f.alternative.label}
+                </span>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        aria-expanded={showMore}
+        onClick={() => setShowMore((v) => !v)}
+        className="flex items-center justify-between rounded-[8px] border border-newTableBorder px-[12px] py-[10px] text-[13px] text-textColor hover:bg-boxHover"
+      >
+        <span className="text-[13px]">
+          {t('fc_more_networks', 'More networks ({{count}})', { count: providers.filter((p) => !isFeatured(p.identifier)).length })}
+        </span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={showMore ? 'rotate-180 transition-transform' : 'transition-transform'} aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {showMore && (<>
       <ProviderSearchToolbar
         search={search}
         onSearch={setSearch}
@@ -313,7 +383,7 @@ const ProviderPicker: FC<{
           />
         }
       />
-      <div className="flex flex-col gap-[6px] max-h-[440px] overflow-y-auto">
+      <div className="flex flex-col gap-[6px] max-h-[360px] overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="text-[13px] text-newTableText text-center py-[24px]">
             {t('no_providers_match', 'No providers match your filters.')}
@@ -363,9 +433,12 @@ const ProviderPicker: FC<{
           })
         )}
       </div>
+      </>)}
     </div>
   );
 };
+
+let openedSetupParam: string | null = null;
 
 export const ChannelsTab: FC = () => {
   const t = useT();
@@ -382,11 +455,29 @@ export const ChannelsTab: FC = () => {
   const canAddChannel = permissions.hasPermission('channels', 'create');
 
   const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  // Where to go once an account is connected — set by the calendar's empty
+  // state so a first connection lands back where the user started. Internal
+  // paths only.
+  const returnParam = searchParams?.get('return') || '';
+  const returnTo = returnParam.startsWith('/') && !returnParam.startsWith('//') ? returnParam : '';
+  // The installer link (?tech=1) opens the developer-app setup directly.
+  const startTechnical = searchParams?.get('tech') === '1';
 
   const providerName = useCallback(
     (identifier: string) =>
       providers?.find((p) => p.identifier === identifier)?.name || identifier,
     [providers]
+  );
+
+  // "Facebook" rather than the catalog's "Facebook Page" for the main networks.
+  const brandName = useCallback(
+    (identifier: string) =>
+      featuredChannels(t).find(
+        (f) => f.identifier === identifier || f.alternative?.identifier === identifier
+      )?.title || providerName(identifier),
+    [t, providerName]
   );
 
   // Connected account names per provider (skips disabled / half-connected rows).
@@ -405,10 +496,14 @@ export const ChannelsTab: FC = () => {
     (identifier: string, config?: ChannelConfigItem) => {
       const provider = providers?.find((p) => p.identifier === identifier);
       modals.openModal({
-        title: (
+        title: isFeatured(identifier) ? (
+          <span className="text-[20px]">
+            {t('fc_modal_title', 'Connect {{brand}}', { brand: brandName(identifier) })}
+          </span>
+        ) : (
           <ProviderModalTitle
             identifier={identifier}
-            name={providerName(identifier)}
+            name={brandName(identifier)}
             action={config ? 'edit' : 'setup'}
           />
         ),
@@ -439,12 +534,36 @@ export const ChannelsTab: FC = () => {
             }
             onClose={close}
             onSaved={refresh}
+            onConnected={returnTo ? () => router.push(returnTo) : undefined}
+            startTechnical={startTechnical}
           />
         ),
       });
     },
-    [providers, modals, providerName, refresh]
+    [providers, modals, providerName, brandName, refresh, returnTo, router, startTechnical, t]
   );
+
+  // Deep link from the composer's channel tiles: /settings/channels?setup=<id>
+  // opens that network's guide (or its existing config) directly.
+  const setupParam = searchParams?.get('setup');
+  useEffect(() => {
+    if (!setupParam) {
+      openedSetupParam = null; // param consumed — a later deep link may open again
+      return;
+    }
+    if (!providers?.length || !configs) return;
+    if (!providers.some((p) => p.identifier === setupParam)) return;
+    // Module-level guard: dev StrictMode / a second mounted tab instance must
+    // not open the modal twice. Drop the param so a refresh doesn't reopen it.
+    if (openedSetupParam === setupParam) return;
+    openedSetupParam = setupParam;
+    window.history.replaceState(
+      null,
+      '',
+      returnTo ? `${window.location.pathname}?return=${encodeURIComponent(returnTo)}` : window.location.pathname
+    );
+    openConfig(setupParam, configs.find((c) => c.identifier === setupParam));
+  }, [setupParam, providers, configs, openConfig]);
 
   const openPicker = useCallback(() => {
     if (!providers?.length) {
@@ -525,6 +644,21 @@ export const ChannelsTab: FC = () => {
     return (
       <div className="text-textColor text-[14px] py-[40px] text-center">
         {t('loading_channels', 'Loading channels...')}
+      </div>
+    );
+  }
+
+  // Nothing set up yet: the featured networks ARE the page.
+  if (!configs?.length && !search && providers?.length) {
+    return (
+      <div className="flex flex-col gap-[16px] py-[8px]">
+        {canAddChannel ? (
+          <ProviderPicker inline providers={providers} catalog={catalog} onPick={(p) => openConfig(p.identifier)} />
+        ) : (
+          <div className="text-[14px] text-newTableText py-[24px] text-center">
+            {t('no_channels_configured', 'No channels are set up yet.')}
+          </div>
+        )}
       </div>
     );
   }

@@ -11,7 +11,7 @@ import { random } from 'lodash';
 import { useInterval } from '@mantine/hooks';
 import { newDayjs } from '@postmill-ai/frontend/components/layout/set.timezone';
 import { useFetch } from '@postmill-ai/helpers/utils/custom.fetch';
-import { useModals } from '@postmill-ai/frontend/components/layout/new-modal';
+import { areYouSure, useModals } from '@postmill-ai/frontend/components/layout/new-modal';
 import { useToaster } from '@postmill-ai/react/toaster/toaster';
 import { useUser } from '@postmill-ai/frontend/components/layout/user.context';
 import { useT } from '@postmill-ai/react/translation/get.transation.service.client';
@@ -67,10 +67,13 @@ export const SetSelectionModal: FC<{
 const CalendarColumn: FC<{
   getDate: dayjs.Dayjs;
   randomHour?: boolean;
+  // A whole-day cell outside month view (the compact week): every post of the
+  // day, sorted by time, each showing its time.
+  wholeDay?: boolean;
 }> = memo((props) => {
   const t = useT();
 
-  const { getDate, randomHour } = props;
+  const { getDate, randomHour, wholeDay } = props;
   const [now, setNow] = useState(() => newDayjs());
   const user = useUser();
   const {
@@ -88,11 +91,13 @@ const CalendarColumn: FC<{
   const fetch = useFetch();
 
   const { editPost, deletePost, copyDebugJson, openStatistics, openMissingRelease, openPostDetail, changeColor, postAnalyticsDrawer } = usePostActions();
+  const dayCell = wholeDay || display === 'month';
   const postList = useMemo(() => {
-    return posts.filter((post) => {
+    const list = posts.filter((post) => {
       const pList = newDayjs(post.publishDate);
-      const check =
-        display === 'day'
+      const check = wholeDay
+        ? pList.format('DD/MM/YYYY') === getDate.format('DD/MM/YYYY')
+        : display === 'day'
           ? pList.format('YYYY-MM-DD HH:mm') ===
             getDate.format('YYYY-MM-DD HH:mm')
           : display === 'week'
@@ -101,7 +106,10 @@ const CalendarColumn: FC<{
           : pList.format('DD/MM/YYYY') === getDate.format('DD/MM/YYYY');
       return check;
     });
-  }, [posts, display, getDate]);
+    return wholeDay
+      ? [...list].sort((a, b) => newDayjs(a.publishDate).valueOf() - newDayjs(b.publishDate).valueOf())
+      : list;
+  }, [posts, display, getDate, wholeDay]);
   const [showAll, setShowAll] = useState(false);
   const showAllFunc = useCallback(() => {
     setShowAll(true);
@@ -110,11 +118,12 @@ const CalendarColumn: FC<{
     setShowAll(false);
   }, []);
   const list = useMemo(() => {
-    if (showAll) {
+    // The compact week column scrolls, so it lists the whole day.
+    if (showAll || wholeDay) {
       return postList;
     }
     return postList.slice(0, 3);
-  }, [postList, showAll]);
+  }, [postList, showAll, wholeDay]);
 
   const isBeforeNow = useMemo(() => {
     const originalUtc = getDate.startOf('hour');
@@ -144,6 +153,7 @@ const CalendarColumn: FC<{
 
       const post = posts.find((p) => p.id === item.id);
       let action: 'schedule' | 'update' = 'schedule';
+      let alreadyAsked = false;
 
       if (
         post &&
@@ -199,17 +209,39 @@ const CalendarColumn: FC<{
           return;
         }
         action = whatToDo;
+        alreadyAsked = true;
       }
 
-      // Whole-day cells (month view) render `getDate` at 23:59:59 — preserve the
-      // dragged post's original time-of-day instead of snapping to end-of-day.
+      // Whole-day cells (month view, compact week) render `getDate` at 23:59:59 —
+      // preserve the dragged post's original time-of-day instead of snapping to
+      // end-of-day.
       let targetDate = getDate;
-      if (display === 'month' && post) {
+      if (dayCell && post) {
         const orig = newDayjs(post.publishDate);
         targetDate = getDate
           .startOf('day')
           .hour(orig.hour())
           .minute(orig.minute());
+      }
+
+      if (post && newDayjs(post.publishDate).isSame(targetDate, 'minute')) {
+        return;
+      }
+      // A moved schedule is confirmed before saving (the already-published case
+      // asked its own question above).
+      if (
+        action === 'schedule' &&
+        !alreadyAsked &&
+        !(await areYouSure({
+          title: t('confirm_reschedule_title', 'Move this post?'),
+          description: t('confirm_reschedule_body', 'It will be scheduled for {{date}}.', {
+            date: targetDate.format('dddd, LL · HH:mm'),
+          }),
+          approveLabel: t('move_post', 'Move'),
+          cancelLabel: t('cancel', 'Cancel'),
+        }))
+      ) {
+        return;
       }
 
       if (!item.interval) {
@@ -257,7 +289,7 @@ const CalendarColumn: FC<{
     collect: (monitor) => ({
       canDrop: isBeforeNow ? false : !!monitor.canDrop() && !!monitor.isOver(),
     }),
-  }), [posts, isBeforeNow, changeDate, getDate, display, fetch, modal, toaster, t, reloadCalendarView]);
+  }), [posts, isBeforeNow, changeDate, getDate, display, dayCell, fetch, modal, toaster, t, reloadCalendarView]);
 
   const router = useRouter();
   const addModal = useCallback(async () => {
@@ -289,8 +321,14 @@ const CalendarColumn: FC<{
 
     if (set === 'exit') return;
 
-    const date =
-      randomHour
+    // A new post on a whole day starts at a sensible time: 09:00, or a few
+    // minutes from now when that has already passed today.
+    const nineAm = getDate.startOf('day').hour(9);
+    const date = wholeDay
+      ? nineAm.isAfter(newDayjs())
+        ? nineAm
+        : newDayjs().add(10, 'minute').startOf('minute')
+      : randomHour
         ? getDate.hour(Math.floor(Math.random() * 24))
         : getDate.format('YYYY-MM-DDTHH:mm:ss') ===
           newDayjs().startOf('hour').format('YYYY-MM-DDTHH:mm:ss')
@@ -319,7 +357,7 @@ const CalendarColumn: FC<{
     }
 
     router.push(`/posts/post?${params.toString()}`);
-  }, [getDate, sets, signature, router, modal, randomHour, t]);
+  }, [getDate, sets, signature, router, modal, randomHour, wholeDay, t]);
 
   const addProvider = useAddProvider();
   return (
@@ -366,6 +404,7 @@ const CalendarColumn: FC<{
               <div className="relative w-full flex flex-col items-center p-[2.5px]">
                 <CalendarItem
                   display={display as 'day' | 'week' | 'month'}
+                  showTime={dayCell}
                   isBeforeNow={isBeforeNow}
                   date={getDate}
                   state={post.state}
@@ -383,7 +422,7 @@ const CalendarColumn: FC<{
               </div>
             </div>
           ))}
-          {!showAll && postList.length > 3 && (
+          {!showAll && !wholeDay && postList.length > 3 && (
             <button
               type="button"
               className="w-full text-center hover:underline py-[5px] text-textColor m-0 p-0 border-0 bg-transparent"
@@ -392,7 +431,7 @@ const CalendarColumn: FC<{
               {t('show_more', '+ Show more')} ({postList.length - 3})
             </button>
           )}
-          {showAll && postList.length > 3 && (
+          {showAll && !wholeDay && postList.length > 3 && (
             <button
               type="button"
               className="w-full text-center hover:underline py-[5px] m-0 p-0 border-0 bg-transparent"

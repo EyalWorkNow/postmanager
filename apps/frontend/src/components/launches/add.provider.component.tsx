@@ -2,7 +2,11 @@
 
 import { useModals } from '@postmill-ai/frontend/components/layout/new-modal';
 import { usePermissions } from '@postmill-ai/frontend/components/layout/use-permissions';
-import React, { FC, useCallback, useMemo } from 'react';
+import React, { FC, useCallback, useMemo, useState } from 'react';
+import {
+  FEATURED_IDENTIFIERS,
+  featuredChannels,
+} from '@postmill-ai/frontend/components/settings/channels/featured-channels';
 import { useFetch } from '@postmill-ai/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { Input } from '@postmill-ai/react/form/input';
@@ -829,34 +833,43 @@ export const AddProviderComponent: FC<{
     [modal, t]
   );
 
-  return (
-    <div className="w-full flex flex-col gap-[20px] rounded-[4px] relative">
-      <div className="flex flex-col">
-        <div
-          className={clsx(
-            isMobile && 'gap-[20px] flex flex-col',
-            !isMobile &&
-              'grid grid-cols-5 gap-[10px] justify-items-center justify-center',
-            isMobile ? {} : onboarding ? 'grid-cols-9' : 'grid-cols-5'
-          )}
-        >
-          {social
-            .filter((item) => {
-              if (!props.invite) {
-                return true;
-              }
+  const [showMore, setShowMore] = useState(false);
+  const featuredMeta = useMemo(
+    () => Object.fromEntries(featuredChannels(t).map((f) => [f.identifier, f])),
+    [t]
+  );
+  // A plain OAuth network with neither a platform app nor an org app cannot
+  // start a connect — send the user to its step-by-step setup guide instead
+  // of a "could not connect" toast.
+  const needsSetup = (item: (typeof social)[number]) =>
+    !props.invite &&
+    !item.platformConfigured &&
+    !item.customFields &&
+    !item.isExternal &&
+    !item.isWeb3 &&
+    !item.isChromeExtension &&
+    !configsByIdentifier[item.identifier]?.length;
+  const goSetup = (identifier: string) => () => {
+    modal.closeAll();
+    router.push(
+      `/settings/channels?setup=${identifier}&return=${encodeURIComponent(window.location.pathname)}`
+    );
+  };
+  // Invite links only work for plain OAuth providers.
+  const visibleForInvite = (item: (typeof social)[number]) =>
+    !props.invite ||
+    (!item.isExternal && !item.isWeb3 && !item.isChromeExtension && !item.customFields);
+  const visible = social.filter(visibleForInvite);
+  // Featured networks first (in featured order), the rest behind "More networks".
+  const featured = FEATURED_IDENTIFIERS.slice(0, 4)
+    .map((id) => visible.find((item) => item.identifier === id))
+    .filter((item): item is (typeof social)[number] => !!item);
+  const others = visible.filter((item) => !featured.includes(item));
 
-              return (
-                !item.isExternal &&
-                !item.isWeb3 &&
-                !item.isChromeExtension &&
-                !item.customFields
-              );
-            })
-            .map((item) => (
+  const renderTile = (item: (typeof social)[number]) => (
               <div
                 key={item.identifier}
-                onClick={getSocialLink(
+                onClick={needsSetup(item) ? goSetup(item.identifier) : getSocialLink(
                   props.invite,
                   item.identifier,
                   item.isExternal,
@@ -906,7 +919,12 @@ export const AddProviderComponent: FC<{
                     'text-center'
                   )}
                 >
-                  {item.name}
+                  {featuredMeta[item.identifier]?.title || item.name}
+                  {featuredMeta[item.identifier] && !isMobile && (
+                    <div className="text-[11px] leading-tight text-newTableText mt-[2px]">
+                      {featuredMeta[item.identifier].tagline}
+                    </div>
+                  )}
                   {(!!item.setupInstructions || !!item.toolTip) && !isMobile && (
                     <div
                       className="absolute top-[6px] inset-e-[6px] w-[22px] h-[22px] flex items-center justify-center rounded-full hover:bg-tableBorder cursor-help z-10"
@@ -971,15 +989,48 @@ export const AddProviderComponent: FC<{
                   ) : (
                     !configsByIdentifier[item.identifier]?.length && (
                       <div className="text-[10px] leading-tight text-newTableText text-center">
-                        {t(
-                          'platform_app_not_available',
-                          'Postmill does not provide an app for this network — connect with your own app (see setup instructions)'
-                        )}
+                        {t('fc_tile_setup_needed', 'One-time setup — click for a short guide')}
                       </div>
                     )
                   ))}
               </div>
-            ))}
+  );
+
+  return (
+    <div className="w-full flex flex-col gap-[16px] rounded-[4px] relative">
+      {!isMobile && featured.length > 0 && (
+        <div className="flex flex-col gap-[8px]">
+          <div className="text-[14px] font-[600] text-textColor">
+            {t('fc_popular_title', 'Main networks')}
+          </div>
+          <div className="grid grid-cols-4 gap-[10px]">{featured.map(renderTile)}</div>
+        </div>
+      )}
+      {!isMobile && featured.length > 0 && (
+        <button
+          type="button"
+          aria-expanded={showMore}
+          onClick={() => setShowMore((v) => !v)}
+          className="flex items-center justify-between rounded-[8px] border border-newTableBorder px-[12px] py-[10px] text-[13px] text-textColor hover:bg-boxHover"
+        >
+          <span className="text-[13px]">
+            {t('fc_more_networks', 'More networks ({{count}})', { count: others.length })}
+          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={showMore ? 'rotate-180 transition-transform' : 'transition-transform'} aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+      )}
+      <div className={clsx('flex flex-col', !isMobile && featured.length > 0 && !showMore && 'hidden')}>
+        <div
+          className={clsx(
+            isMobile && 'gap-[20px] flex flex-col',
+            !isMobile &&
+              'grid grid-cols-5 gap-[10px] justify-items-center justify-center',
+            isMobile ? {} : onboarding ? 'grid-cols-9' : 'grid-cols-5'
+          )}
+        >
+          {(isMobile ? [...featured, ...others] : featured.length ? others : social.filter(visibleForInvite)).map(renderTile)}
         </div>
       </div>
     </div>

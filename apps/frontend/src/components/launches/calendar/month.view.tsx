@@ -5,6 +5,7 @@ import { useCalendar } from './context';
 import { CalendarColumn } from './grid';
 import dayjs from 'dayjs';
 import { newDayjs } from '@postmill-ai/frontend/components/layout/set.timezone';
+import { startOfWeek, weekdayIndex } from './week-start';
 import i18next from 'i18next';
 import { useT } from '@postmill-ai/react/translation/get.transation.service.client';
 
@@ -27,11 +28,8 @@ export const MonthView = () => {
     const currentLanguage = resolvedLanguage || 'en';
     dayjs.locale(currentLanguage);
 
-    const days = [];
-    for (let i = 1; i <= 7; i++) {
-      days.push(newDayjs().day(i).format('dddd'));
-    }
-    return days;
+    const first = startOfWeek(newDayjs());
+    return Array.from({ length: 7 }, (_, i) => first.add(i, 'day').format('dddd'));
   }, [resolvedLanguage]);
 
   const calendarDays = useMemo(() => {
@@ -41,8 +39,7 @@ export const MonthView = () => {
 
     const startOfMonth = newDayjs(new Date(currentYear, currentMonth, 1));
 
-    const startDayOfWeek = startOfMonth.isoWeekday();
-    const daysBeforeMonth = startDayOfWeek - 1;
+    const daysBeforeMonth = weekdayIndex(startOfMonth);
 
     const calendarStartDate = startOfMonth.subtract(daysBeforeMonth, 'day');
 

@@ -480,7 +480,8 @@ export const ContinueIntegration: FC<{
             {successState.message ||
               t(
                 'channel_connected_description',
-                `Your ${providerDisplayName} channel has been successfully connected. You can close this window now.`
+                'Your {{provider}} channel has been successfully connected. You can close this window now.',
+                { provider: providerDisplayName }
               )}
           </div>
         </div>
@@ -505,10 +506,11 @@ export const ContinueIntegration: FC<{
               <h1 className="text-[24px] font-semibold">
                 {t('configure_your_channel', 'Configure Your Channel')}
               </h1>
-              <p className="text-[14px] text-newTableText">
+              <p className="text-[17px] leading-[1.6] text-newTableText">
                 {t(
                   'select_the_page_or_account',
-                  `Select the ${providerDisplayName} page or account you want to connect.`
+                  'Select the {{provider}} page or account you want to connect.',
+                  { provider: providerDisplayName }
                 )}
               </p>
               {!!errorMessage && (

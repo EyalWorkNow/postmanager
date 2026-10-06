@@ -2,6 +2,7 @@
 
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
+import Image from 'next/image';
 import { Button } from '@postmill-ai/react/form/button';
 import { Input } from '@postmill-ai/react/form/input';
 import { useFetch } from '@postmill-ai/helpers/utils/custom.fetch';
@@ -10,6 +11,7 @@ import { useToaster } from '@postmill-ai/react/toaster/toaster';
 import { useT } from '@postmill-ai/react/translation/get.transation.service.client';
 import { useVpnConfig } from '@postmill-ai/frontend/components/settings/vpn/hooks/useVpnConfig';
 import { ChannelVpnRegionSelect } from './channel-vpn-region-select';
+import { channelGuide, featuredChannels } from './featured-channels';
 import { CampaignSelector } from '@postmill-ai/frontend/components/campaigns/selector/campaign-selector';
 import {
   ProviderVersionSelect,
@@ -109,6 +111,10 @@ interface ChannelConfigFormProps {
   config?: ChannelConfigInstance; // present => edit mode
   onClose: () => void;
   onSaved: () => void;
+  // Called once an account actually got connected (OAuth popup / token / direct).
+  onConnected?: () => void;
+  // Open the installer/technical view directly (link sent to the installer).
+  startTechnical?: boolean;
 }
 
 export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
@@ -122,6 +128,8 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   config,
   onClose,
   onSaved,
+  onConnected,
+  startTechnical,
 }) => {
   const t = useT();
   const fetch = useFetch();
@@ -147,6 +155,10 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   // In-progress token connect: the issued state nonce plus the saved set id
   // (needed to flip the set enabled after a successful connect). Renders
   // Web3Connect when the provider has an interactive connect component.
+  // Main networks show a plain one-button screen; the developer-app setup is a
+  // separate "technical" view for whoever installs the system.
+  const [technical, setTechnical] = useState(!!startTechnical);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [tokenNonce, setTokenNonce] = useState<{ nonce: string; id: string } | null>(null);
 
   // Connected channels for this provider (the composer list) — after a
@@ -177,7 +189,8 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
     [integrationList, identifier]
   );
 
-  const [name, setName] = useState(config?.name || '');
+  // Pre-filled so the name is never the thing blocking a first connect.
+  const [name, setName] = useState(config?.name || providerName || '');
   // Non-secret stored values prefill in edit mode (they're identifiers, not
   // secrets — the API returns them in displayValues). Secrets (clientSecret,
   // bot tokens) stay write-only: blank keeps the stored value.
@@ -203,7 +216,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   // With a platform app configured, everything but name + Connect lives under
   // the Advanced section — expanded only when this set already has stored
   // credentials (a BYO-app set being edited).
-  const [showAdvanced, setShowAdvanced] = useState(isConfigured);
+  const [showAdvanced, setShowAdvanced] = useState(isConfigured && !isOAuth);
 
   const {
     versions,
@@ -400,6 +413,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
         toaster.show(t('channel_connected', 'Channel Connected!'), 'success');
         onSaved();
         onClose();
+        onConnected?.();
       } catch {
         toaster.show(
           t('could_not_connect_to_platform', 'Could not connect to the platform'),
@@ -501,7 +515,16 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
     if (isToken) {
       return handleTokenConnect();
     }
-    const saved = await saveConfig();
+    // Own-app OAuth: connect initiation is gated on an enabled set, so save it
+    // enabled — but only once both app credentials are present.
+    if (!hasPlatformApp && !isConfigured && (!clientId.trim() || !clientSecret.trim())) {
+      toaster.show(
+        t('fill_app_credentials_first', 'Fill in both app keys first (following the steps above).'),
+        'warning'
+      );
+      return;
+    }
+    const saved = await saveConfig(hasPlatformApp ? undefined : { enable: true });
     if (!saved) return;
     const id = saved.id;
     if (!id) {
@@ -551,6 +574,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
           toaster.show(t('channel_connected', 'Channel Connected!'), 'success');
           onSaved();
           onClose();
+          onConnected?.();
         })();
       };
       const cleanup = () => {
@@ -561,7 +585,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
     } finally {
       setConnecting(false);
     }
-  }, [saveConfig, fetch, identifier, enabled, toaster, t, onSaved, onClose, isToken, handleTokenConnect]);
+  }, [saveConfig, fetch, identifier, enabled, toaster, t, onSaved, onClose, isToken, handleTokenConnect, hasPlatformApp, isConfigured, clientId, clientSecret]);
 
   const handleDelete = useCallback(async () => {
     if (!config) return;
@@ -610,6 +634,17 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
         { key: 'clientSecret', label: t('client_secret', 'Client Secret / API Secret'), secret: true },
       ];
 
+  // Plain-language Hebrew guide for the featured networks; null → adapter text.
+  const guide = channelGuide(t, identifier);
+  const setupSteps = guide?.steps || setup?.setupSteps || [];
+  const callbackHelp = guide?.callbackHelp || setup?.callbackInstructions;
+  const httpsBlocked = !!guide?.requiresHttps && callbackUrl.startsWith('http://');
+  // "Facebook" rather than the catalog's "Facebook Page" in sentences.
+  const brandName =
+    featuredChannels(t).find(
+      (f) => f.identifier === identifier || f.alternative?.identifier === identifier
+    )?.title || providerName;
+
   const handleCopyCallback = useCallback(async () => {
     if (!callbackUrl) return;
     try {
@@ -636,19 +671,25 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
     return (
       <div key={field.key} className="flex flex-col gap-[6px]">
         <label className="text-[14px] font-[500]">
-          {field.label}
+          {guide?.fields[field.key]?.label || field.label}
           {field.optional && (
             <span className="text-[12px] text-newTableText font-[400]"> ({t('optional', 'optional')})</span>
           )}
         </label>
         <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] text-textColor flex items-center justify-center">
           <input
-            type={field.secret ? 'password' : 'text'}
-            // Keep browser password managers out of credential fields —
-            // without this the App ID input autofills with the account
-            // email and saving would silently overwrite the stored ID
-            // (observed live: test@test.com sitting in the App ID box).
+            // Keep browser password managers out of credential fields. Chrome
+            // ignores autoComplete="off" once a type=password input is on the
+            // page and fills the login password into the secret and the email
+            // into the next text field (observed live: test@test.com in
+            // Configuration ID). No password-type input at all → nothing to
+            // autofill; the secret is masked with -webkit-text-security.
+            type="text"
             autoComplete="off"
+            spellCheck={false}
+            data-1p-ignore
+            data-lpignore="true"
+            style={field.secret ? ({ WebkitTextSecurity: 'disc' } as React.CSSProperties) : undefined}
             name={`cred_${field.key}_${identifier}`}
             className="h-full bg-transparent outline-hidden flex-1 text-[14px] text-textColor placeholder-textColor px-[16px]"
             placeholder={(isExtra ? '' : credentialPlaceholder) || field.placeholder || ''}
@@ -656,8 +697,10 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
             onChange={(e) => setValue(e.target.value)}
           />
         </div>
-        {field.help && (
-          <div className="text-[12px] text-newTableText">{field.help}</div>
+        {(guide?.fields[field.key]?.help || field.help) && (
+          <div className="text-[12px] text-newTableText">
+            {guide?.fields[field.key]?.help || field.help}
+          </div>
         )}
       </div>
     );
@@ -666,28 +709,67 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   // ── Layout blocks (shared by both modes) ────────────────────────────────
 
   const portalLinkBlock = appLink?.url && (
-    <div className="flex justify-end">
-      <a
-        href={appLink.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[12px] text-textColor underline hover:opacity-80"
-      >
-        {appLink.label}
-      </a>
-    </div>
+    <a
+      href={appLink.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="self-start inline-flex items-center gap-[6px] h-[36px] px-[14px] rounded-[8px] border border-newTableBorder bg-newBgColorInner text-[13px] text-textColor hover:bg-boxHover"
+    >
+      {t('fc_open_portal', 'Open {{portal}}', { portal: appLink.label })}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M7 17 17 7M8 7h9v9" />
+      </svg>
+    </a>
   );
 
-  const setupStepsBlock = !!setup?.setupSteps?.length && (
-    <div className="flex flex-col gap-[6px] bg-newBgColorInner border border-newTableBorder rounded-[8px] p-[12px]">
-      <label className="text-[13px] font-[500]">{t('setup_steps', 'How to set this up')}</label>
-      <ol className="flex flex-col gap-[4px] list-decimal ps-[18px]">
-        {setup.setupSteps!.map((step, idx) => (
-          <li key={idx} className="text-[13px] text-newTableText">
-            {step}
+  const setupStepsBlock = setupSteps.length > 0 && (
+    <div className="flex flex-col gap-[10px] bg-newBgColorInner border border-newTableBorder rounded-[8px] p-[14px]">
+      <div className="flex items-center justify-between gap-[8px]">
+        <label className="text-[14px] font-[600]">{t('setup_steps', 'How to set this up')}</label>
+        {guide && (
+          <span className="text-[12px] text-newTableText">
+            {t('fc_one_time', 'One time only, about 10 minutes')}
+          </span>
+        )}
+      </div>
+      <ol className="flex flex-col gap-[8px]">
+        {setupSteps.map((step, idx) => (
+          <li key={idx} className="flex gap-[10px] items-start text-[13px] leading-[1.6] text-textColor">
+            <span className="shrink-0 w-[22px] h-[22px] rounded-full bg-btnPrimary/15 text-btnPrimary text-[12px] font-[600] flex items-center justify-center mt-[1px]">
+              {idx + 1}
+            </span>
+            <span>{step}</span>
           </li>
         ))}
       </ol>
+      {guide?.note && (
+        <div className="text-[12px] text-newTableText border-t border-newTableBorder pt-[8px]">
+          {guide.note}
+        </div>
+      )}
+    </div>
+  );
+
+  // What happens to the keys — stated plainly, and true: credentials and
+  // account tokens are encrypted at rest in this installation's own database.
+  const securityBlock = (isOAuth || isToken) && (
+    <div className="flex gap-[10px] items-start rounded-[8px] border border-green-600/30 bg-green-600/10 p-[12px]">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-400 shrink-0 mt-[1px]" aria-hidden="true">
+        <rect x="4" y="11" width="16" height="10" rx="2" />
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      </svg>
+      <div className="flex flex-col gap-[2px] text-[12px] leading-[1.6]">
+        <span className="font-[600] text-textColor">
+          {t('fc_secure_title', 'Protected and local')}
+        </span>
+        <span className="text-newTableText">
+          {t(
+            'fc_secure_body',
+            'The keys and the account connection are stored encrypted only in this system’s database. They are not sent to Postmill or any other party — the login itself happens directly on {{provider}}’s own site, and you never type your password here.',
+            { provider: brandName }
+          )}
+        </span>
+      </div>
     </div>
   );
 
@@ -755,7 +837,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   // Connect path: the default for platform-app providers (OAuth popup or
   // bot-token connect), and also offered on BYO token sets once credentials
   // are stored (a token set without a token cannot connect).
-  const showConnect = hasPlatformApp || (isToken && isConfigured);
+  const showConnect = hasPlatformApp || (isToken && isConfigured) || isOAuth;
 
   // Direct-channel account fields + Connect (Bluesky & co.) — the primary
   // content of Mode B for these providers.
@@ -823,7 +905,9 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
           ? t('connecting', 'Connecting...')
           : connectedChannels.length > 0
             ? t('connect_another_account', 'Connect another account')
-            : t('connect_with_provider', 'Connect with {{provider}}', { provider: providerName })}
+            : hasPlatformApp
+              ? t('connect_with_provider', 'Connect with {{provider}}', { provider: providerName })
+              : t('fc_save_and_connect', 'Save and connect to {{provider}}', { provider: brandName })}
       </button>
       {platformConfigured && (
         <div className="text-[12px] text-newTableText text-center">
@@ -837,7 +921,9 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
       channels never register a callback. */}
   const callbackBlock = !!callbackUrl && setup?.authType !== 'token' && setup?.authType !== 'direct' && (
     <div className="flex flex-col gap-[6px]">
-      <label className="text-[13px] font-[500]">{t('callback_url', 'Callback URL')}</label>
+      <label className="text-[13px] font-[500]">
+        {guide ? t('fc_return_address', 'Return address (copy it into the app)') : t('callback_url', 'Callback URL')}
+      </label>
       <div className="flex gap-[8px] items-center">
         <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] text-textColor flex items-center justify-center flex-1 min-w-0">
           <input
@@ -854,8 +940,17 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
           {callbackCopied ? t('copied', 'Copied') : t('copy', 'Copy')}
         </Button>
       </div>
-      {setup?.callbackInstructions && (
-        <div className="text-[12px] text-newTableText">{setup.callbackInstructions}</div>
+      {callbackHelp && (
+        <div className="text-[12px] text-newTableText">{callbackHelp}</div>
+      )}
+      {httpsBlocked && (
+        <div className="text-[12px] rounded-[8px] border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-400 p-[10px] leading-[1.6]">
+          {t(
+            'fc_https_required',
+            '{{provider}} only accepts secure (https) addresses. While the system runs on this computer at an http address, the connection to {{provider}} will not work — it will once the system has an https address.',
+            { provider: brandName }
+          )}
+        </div>
       )}
     </div>
   );
@@ -959,7 +1054,13 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
             )}
           </>
         )}
-        <Button type="button" onClick={handleSave} disabled={saving}>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          // With an own-app connect button on screen, plain Save is secondary.
+          className={isOAuth && showConnect ? 'bg-transparent! border border-newTableBorder text-textColor' : undefined}
+        >
           {saving ? t('saving', 'Saving...') : t('save', 'Save')}
         </Button>
       </div>
@@ -972,7 +1073,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   // the user goes back. ────────────────────────────────────────────────────
   if (tokenNonce && Web3Connect) {
     return (
-      <div className="flex flex-col gap-[16px] min-w-[460px] mobile:min-w-0">
+      <div className="flex flex-col gap-[16px] w-[640px] max-w-full">
         <Web3Connect
           nonce={tokenNonce.nonce}
           onComplete={(code, newState) => {
@@ -992,14 +1093,138 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
     );
   }
 
+  // ── Simple mode for the main networks: one button for the customer. ─────
+  if (guide && !technical) {
+    const ready = hasPlatformApp || isConfigured;
+    const pageStep =
+      identifier === 'tiktok'
+        ? t('fc_simple_s3_tiktok', 'Approve access — done')
+        : identifier === 'linkedin'
+          ? t('fc_simple_s3_profile', 'Approve — done')
+          : t('fc_simple_s3', 'Choose your business page and approve — done');
+    const techLink = () => {
+      const url = `${window.location.origin}/settings/channels?setup=${identifier}&tech=1`;
+      navigator.clipboard
+        .writeText(url)
+        .then(() => {
+          setLinkCopied(true);
+          toaster.show(
+            t('fc_link_copied', 'Link copied — paste it into WhatsApp or an email to your installer'),
+            'success'
+          );
+        })
+        .catch(() => toaster.show(t('copy_failed', 'Copy failed'), 'warning'));
+    };
+    return (
+      <div className="flex flex-col items-center gap-[24px] w-[560px] max-w-full py-[8px] text-center">
+        <Image
+          src={`/icons/platforms/${identifier}.png`}
+          alt=""
+          width={72}
+          height={72}
+          className="rounded-full"
+        />
+        {connectedChannels.length > 0 && (
+          <div className="w-full flex items-center justify-center gap-[8px] rounded-[12px] bg-green-600/10 border border-green-600/30 p-[14px]">
+            <span className="text-[20px]" aria-hidden="true">✓</span>
+            <span className="text-[17px] text-textColor">
+              {t('fc_already_connected', 'Already connected: {{name}}', {
+                name: connectedChannels.map((ch) => ch.name).join(', '),
+              })}
+            </span>
+          </div>
+        )}
+        {ready ? (
+          <>
+            <ol className="w-full flex flex-col gap-[14px] text-start">
+              {[
+                t('fc_simple_s1', 'Press the big button below'),
+                t('fc_simple_s2', 'A {{brand}} window opens. Sign in as usual, with your own username and password', { brand: brandName }),
+                pageStep,
+              ].map((step, i) => (
+                <li key={i} className="flex items-start gap-[14px]">
+                  <span className="shrink-0 w-[34px] h-[34px] rounded-full bg-btnPrimary text-white text-[17px] font-[700] flex items-center justify-center">
+                    {i + 1}
+                  </span>
+                  <span className="text-[18px] leading-[1.5] text-textColor pt-[3px]">{step}</span>
+                </li>
+              ))}
+            </ol>
+            {httpsBlocked ? (
+              <div className="w-full rounded-[12px] border border-amber-500/40 bg-amber-500/10 p-[16px] text-[16px] leading-[1.6] text-textColor">
+                {t('fc_simple_https', '{{brand}} can only be connected once the system is online at a secure address. Please ask your installer.', { brand: brandName })}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConnect}
+                disabled={saving || connecting}
+                className="w-full h-[60px] rounded-[14px] bg-btnPrimary text-white hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                <span className="text-[19px] font-[700]">
+                  {connecting
+                    ? t('fc_simple_connecting', 'Opening {{brand}}…', { brand: brandName })
+                    : connectedChannels.length > 0
+                      ? t('fc_simple_connect_more', 'Connect another {{brand}} account', { brand: brandName })
+                      : t('fc_simple_connect', 'Connect with {{brand}}', { brand: brandName })}
+                </span>
+              </button>
+            )}
+            <p className="flex items-start gap-[10px] text-start text-[16px] leading-[1.6] text-newTableText">
+              <span className="text-[18px]" aria-hidden="true">🔒</span>
+              {t('fc_simple_safe', 'Your password stays with {{brand}}. We never see it and never store it.', { brand: brandName })}
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col gap-[10px]">
+              <h3 className="text-[22px] font-[700] text-textColor">
+                {t('fc_simple_not_ready_title', '{{brand}} is not switched on yet', { brand: brandName })}
+              </h3>
+              <p className="text-[18px] leading-[1.6] text-textColor">
+                {t(
+                  'fc_simple_not_ready_body',
+                  'Before the first connection, a short technical setup is needed — once only. The person who installed the system for you can do it in about 10 minutes. After that, connecting is one click.'
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={techLink}
+              className="w-full h-[60px] rounded-[14px] bg-btnPrimary text-white hover:opacity-90 transition-opacity"
+            >
+              <span className="text-[19px] font-[700]">
+                {linkCopied
+                  ? t('fc_simple_link_copied_btn', 'Link copied ✓')
+                  : t('fc_simple_copy_link', 'Copy a link to send to the installer')}
+              </span>
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => setTechnical(true)}
+          className="text-newTableText hover:text-textColor hover:underline"
+        >
+          <span className="text-[14px]">
+            {ready
+              ? t('fc_simple_tech_settings', 'Technical settings')
+              : t('fc_simple_do_it_myself', 'I’ll do the technical setup myself')}
+          </span>
+        </button>
+      </div>
+    );
+  }
+
   // ── Mode A: platform app — name + Connect are the whole story; everything
   // else is collapsed under Advanced. ────────────────────────────────────────
   if (hasPlatformApp) {
     return (
-      <div className="flex flex-col gap-[16px] min-w-[460px] mobile:min-w-0">
+      <div className="flex flex-col gap-[16px] w-[640px] max-w-full">
         {portalLinkBlock}
         {nameBlock}
         {connectBlock}
+        {securityBlock}
         {enabledBlock}
         <div className="rounded-[8px] border border-newTableBorder">
           <button
@@ -1041,9 +1266,67 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
     );
   }
 
+  // ── Mode B (own-app OAuth): guide → keys → return address → connect, with
+  // the technical knobs folded under Advanced. ─────────────────────────────
+  if (isOAuth) {
+    return (
+      <div className="flex flex-col gap-[16px] w-[640px] max-w-full">
+        {guide && (
+          <button type="button" onClick={() => setTechnical(false)} className="self-start text-newTableText hover:text-textColor hover:underline">
+            <span className="text-[14px]">{t('fc_back_simple', 'Back to the simple screen')}</span>
+          </button>
+        )}
+        {portalLinkBlock}
+        {setupStepsBlock}
+        {/* Only what the guide asks for up front; optional keys and the
+            (pre-filled) name wait under Advanced. */}
+        {credentialFieldsBlock && credentialFieldsBlock.filter((_, i) => !credentialFields[i].optional)}
+        {callbackBlock}
+        {connectBlock}
+        {securityBlock}
+        <div className="rounded-[8px] border border-newTableBorder">
+          <button
+            type="button"
+            aria-expanded={showAdvanced}
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="flex w-full items-center justify-between px-[12px] py-[10px] text-[13px] font-[500] text-textColor"
+          >
+            {t('advanced', 'Advanced')}
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={showAdvanced ? 'rotate-180 transition-transform' : 'transition-transform'}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+          {showAdvanced && (
+            <div className="flex flex-col gap-[12px] border-t border-newTableBorder p-[12px]">
+              {nameBlock}
+              {credentialFieldsBlock && credentialFieldsBlock.filter((_, i) => credentialFields[i].optional)}
+              {enabledBlock}
+              {versionBlock}
+              {scopesBlock}
+              {notesBlock}
+              {vpnBlock}
+            </div>
+          )}
+        </div>
+        {campaignBlock}
+        {footerBlock}
+      </div>
+    );
+  }
+
   // ── Mode B: no platform app — everything is the primary content. ─────────
   return (
-    <div className="flex flex-col gap-[16px] min-w-[460px] mobile:min-w-0">
+    <div className="flex flex-col gap-[16px] w-[640px] max-w-full">
       {portalLinkBlock}
       {setupStepsBlock}
       {nameBlock}

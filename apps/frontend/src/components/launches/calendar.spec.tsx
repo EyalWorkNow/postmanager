@@ -293,32 +293,44 @@ describe('CalendarItem', () => {
     });
   });
 
-  describe('state status dots', () => {
-    it('renders a green Published dot for PUBLISHED state', () => {
-      const { container } = render(<CalendarItem {...baseProps()} />);
-      const dot = container.querySelector('[data-tooltip-content="Published"]');
-      expect(dot).toBeTruthy();
-      expect(dot!.className).toContain('bg-green-500');
+  // Status is icon + word, never colour alone.
+  describe('state status label', () => {
+    it('labels a PUBLISHED post "Published" with a check mark', () => {
+      render(<CalendarItem {...baseProps()} />);
+      expect(screen.getByText('Published')).toBeTruthy();
+      expect(screen.getByText('✓')).toBeTruthy();
     });
 
-    it('renders a blue Scheduled dot for QUEUE state', () => {
+    it('labels a QUEUE post "Scheduled"', () => {
       const post = basePost({ state: 'QUEUE' });
-      const { container } = render(
-        <CalendarItem {...baseProps()} state="QUEUE" post={post} />
-      );
-      const dot = container.querySelector('[data-tooltip-content="Scheduled"]');
-      expect(dot).toBeTruthy();
-      expect(dot!.className).toContain('bg-blue-500');
+      render(<CalendarItem {...baseProps()} state="QUEUE" post={post} />);
+      expect(screen.getByText('Scheduled')).toBeTruthy();
     });
 
-    it('renders an amber Draft dot for DRAFT state', () => {
+    it('labels a DRAFT post "Draft"', () => {
       const post = basePost({ state: 'DRAFT' });
-      const { container } = render(
-        <CalendarItem {...baseProps()} state="DRAFT" post={post} />
+      render(<CalendarItem {...baseProps()} state="DRAFT" post={post} />);
+      expect(screen.getByText('Draft')).toBeTruthy();
+    });
+
+    it('labels a scheduled post on a channel needing re-auth "Needs attention"', () => {
+      const post = basePost({ state: 'QUEUE' });
+      render(
+        <CalendarItem
+          {...baseProps()}
+          state="QUEUE"
+          post={post}
+          integrations={[{ id: 'int-1', refreshNeeded: true } as any]}
+        />
       );
-      const dot = container.querySelector('[data-tooltip-content="Draft"]');
-      expect(dot).toBeTruthy();
-      expect(dot!.className).toContain('bg-amber-500');
+      expect(screen.getByText('Needs attention')).toBeTruthy();
+      expect(screen.queryByText('Scheduled')).toBeNull();
+    });
+
+    it('labels an ERROR post "Failed", not a success state', () => {
+      const post = basePost({ state: 'ERROR' });
+      render(<CalendarItem {...baseProps()} state="ERROR" post={post} />);
+      expect(screen.getByText('Failed')).toBeTruthy();
     });
 
     it('returns no state pill for ERROR state', () => {

@@ -23,7 +23,9 @@ import { DatePicker } from '@mantine/dates';
 import { MantineProvider } from '@mantine/core';
 import { useT } from '@postmill-ai/react/translation/get.transation.service.client';
 import i18next from 'i18next';
+import Link from 'next/link';
 import { newDayjs } from '@postmill-ai/frontend/components/layout/set.timezone';
+import { startOfWeek, endOfWeek } from './calendar/week-start';
 
 // Helper function to get start and end dates based on display type
 function getDateRange(
@@ -40,8 +42,8 @@ function getDateRange(
       };
     case 'week':
       return {
-        startDate: date.startOf('isoWeek').format('YYYY-MM-DD'),
-        endDate: date.endOf('isoWeek').format('YYYY-MM-DD'),
+        startDate: startOfWeek(date).format('YYYY-MM-DD'),
+        endDate: endOfWeek(date).format('YYYY-MM-DD'),
       };
     case 'month':
       return {
@@ -673,6 +675,83 @@ export const Filters = () => {
             {getDisplayText()}
           </span>
         </div>
+        {/* Date navigation and window — on the bar itself (they used to live
+            only inside the Filters drawer). Arrows flip in RTL. */}
+        <button
+          type="button"
+          onClick={setToday}
+          className="shrink-0 h-[42px] px-[12px] rounded-[8px] border border-newTableBorder bg-newBgColorInner hover:bg-boxFocused hover:text-textItemFocused transition-all"
+        >
+          <span className="text-[14px] font-[500]">{t('today', 'Today')}</span>
+        </button>
+        <div className="shrink-0 flex h-[42px] rounded-[8px] border border-newTableBorder bg-newTableBorder gap-px overflow-hidden">
+          <button
+            type="button"
+            onClick={previous}
+            aria-label={t('previous', 'Previous')}
+            className="w-[36px] bg-newBgColorInner flex items-center justify-center hover:bg-boxFocused hover:text-textItemFocused rtl:rotate-180"
+          >
+            <svg width="8" height="12" viewBox="0 0 8 12" fill="none" aria-hidden="true">
+              <path d="M6.5 11L1.5 6L6.5 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={next}
+            aria-label={t('next', 'Next')}
+            className="w-[36px] bg-newBgColorInner flex items-center justify-center hover:bg-boxFocused hover:text-textItemFocused rtl:rotate-180"
+          >
+            <svg width="8" height="12" viewBox="0 0 8 12" fill="none" aria-hidden="true">
+              <path d="M1.5 11L6.5 6L1.5 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <div
+          role="group"
+          aria-label={t('window', 'Window')}
+          className="shrink-0 flex p-[4px] h-[42px] border border-newTableBorder rounded-[8px] bg-newBgColorInner"
+        >
+          {(['day', 'week', 'month'] as const).map((mode) => (
+            <button
+              type="button"
+              key={mode}
+              aria-pressed={!calendar.customRange && rangeMode === mode}
+              onClick={setCurrent(mode)}
+              className={clsx(
+                'px-[12px] rounded-[6px]',
+                !calendar.customRange && rangeMode === mode
+                  ? 'text-textItemFocused bg-boxFocused'
+                  : 'hover:bg-boxFocused/60'
+              )}
+            >
+              <span className="text-[14px] font-[500]">
+                {t(mode, mode.charAt(0).toUpperCase() + mode.slice(1))}
+              </span>
+            </button>
+          ))}
+        </div>
+        {calendar.display === 'week' && !calendar.customRange && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={calendar.weekMode === 'hours'}
+            onClick={() =>
+              calendar.setWeekMode(calendar.weekMode === 'hours' ? 'compact' : 'hours')
+            }
+            className={clsx(
+              'shrink-0 hidden lg:flex items-center gap-[6px] h-[42px] px-[12px] rounded-[8px] border',
+              calendar.weekMode === 'hours'
+                ? 'border-btnPrimary text-textItemFocused bg-boxFocused'
+                : 'border-newTableBorder bg-newBgColorInner hover:bg-boxFocused'
+            )}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            <span className="text-[14px] font-[500]">{t('hour_grid', 'Hour grid')}</span>
+          </button>
+        )}
         {/* Quick content search — drives the same contentSearch state as the
             Filters drawer's free-text field (client-side .filter over the
             loaded posts). Left of the view switcher; hidden on small screens. */}
@@ -700,7 +779,7 @@ export const Filters = () => {
             onChange={(e) => calendar.setContentSearch(e.target.value)}
             placeholder={t('search_posts', 'Search posts...')}
             aria-label={t('search_posts', 'Search posts')}
-            className="w-[190px] h-[42px] ps-[32px] pe-[26px] rounded-[8px] bg-newBgColorInner border border-newTableBorder text-[14px] text-textColor outline-hidden focus:border-btnPrimary placeholder:text-newTableText"
+            className="w-[160px] h-[42px] ps-[32px] pe-[26px] rounded-[8px] bg-newBgColorInner border border-newTableBorder text-[14px] text-textColor outline-hidden focus:border-btnPrimary placeholder:text-newTableText"
           />
           {!!calendar.contentSearch && (
             <button
@@ -761,6 +840,15 @@ export const Filters = () => {
             </span>
           )}
         </button>
+        <Link
+          href="/posts/post"
+          className="shrink-0 h-[42px] px-[16px] rounded-[8px] bg-btnPrimary text-white flex items-center gap-[6px] hover:opacity-90 transition-opacity"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <span className="text-[14px] font-[600] whitespace-nowrap">{t('new_post', 'New post')}</span>
+        </Link>
       </div>
 
       {/* Applied-filter track — a chip per non-default filter, each removable. */}

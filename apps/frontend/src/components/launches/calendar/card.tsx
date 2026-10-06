@@ -152,31 +152,41 @@ export const CalendarItem: FC<{
       : `@${profile}`
     : undefined;
 
-  // Publishing status as a coloured dot in the header band — green is published,
-  // red is failed (tooltip carries the error), blue is scheduled/publishing.
-  const statusDot = (() => {
+  // Publishing status as icon + word (never colour alone). A scheduled post on
+  // a channel that is disconnected or needs re-auth will not publish — that is
+  // "needs attention", not "scheduled".
+  // The posts payload carries no channel status — read it off the org's
+  // integration list the calendar already holds.
+  const channel = props.integrations.find((i) => i.id === post.integration?.id) as
+    | { disabled?: boolean; refreshNeeded?: boolean }
+    | undefined;
+  const needsAttention =
+    state === 'QUEUE' && !!(channel?.disabled || channel?.refreshNeeded);
+  const status = (() => {
+    if (needsAttention) {
+      return {
+        icon: '⚠',
+        label: t('needs_attention', 'Needs attention'),
+        cls: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+        tip: t('channel_needs_reconnect', 'The channel needs to be reconnected before this post can publish'),
+      };
+    }
     switch (state) {
       case 'PUBLISHED':
-        return { cls: 'bg-green-500', tip: t('published', 'Published') };
+        return { icon: '✓', label: t('published', 'Published'), cls: 'bg-green-500/15 text-green-800 dark:text-green-300' };
       case 'QUEUE':
-        return { cls: 'bg-blue-500', tip: t('scheduled', 'Scheduled') };
+        return { icon: '◷', label: t('scheduled', 'Scheduled'), cls: 'bg-blue-500/15 text-blue-800 dark:text-blue-300' };
       case 'PUBLISHING':
-        return {
-          cls: 'bg-blue-500 animate-pulse',
-          tip: t('publishing', 'Publishing'),
-        };
+        return { icon: '⟳', label: t('publishing', 'Publishing'), cls: 'bg-blue-500/15 text-blue-800 dark:text-blue-300 animate-pulse' };
       case 'ERROR':
         return {
-          cls: 'bg-red-500',
-          tip:
-            post.error ||
-            t(
-              'post_error_occurred',
-              'An error occurred while publishing this post'
-            ),
+          icon: '✕',
+          label: t('failed', 'Failed'),
+          cls: 'bg-red-500/15 text-red-800 dark:text-red-300',
+          tip: post.error || t('post_error_occurred', 'An error occurred while publishing this post'),
         };
       case 'DRAFT':
-        return { cls: 'bg-amber-500', tip: t('draft', 'Draft') };
+        return { icon: '✎', label: t('draft', 'Draft'), cls: 'bg-newTableBorder text-textColor' };
       default:
         return null;
     }
@@ -197,7 +207,7 @@ export const CalendarItem: FC<{
         // keep every row of the mini post left-aligned regardless. No
         // overflow-hidden here: the unread/error/creation badges hang over the
         // card edges; the band and body carry the rounding instead.
-        'w-full flex flex-col group relative rounded-[10px] text-left',
+        'w-full flex flex-col group relative rounded-[10px] text-start',
         state === 'ERROR' && 'ring-2 ring-red-500'
       )}
       style={{
@@ -250,20 +260,6 @@ export const CalendarItem: FC<{
           {post.tags.map((p) => p.tag.name).join(', ')}
         </div>
         <div className="flex items-center gap-[3px] shrink-0">
-          {statusDot && (
-            <span
-              className={clsx('w-[6px] h-[6px] rounded-full', statusDot.cls)}
-              data-tooltip-id="tooltip"
-              data-tooltip-content={statusDot.tip}
-            />
-          )}
-          {showTime && (
-            <span className="text-[9px] leading-none opacity-80 whitespace-nowrap">
-              {newDayjs(post.publishDate)
-                .local()
-                .format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
-            </span>
-          )}
           <KebabMenu
             ariaLabel={t('post_actions', 'Post actions')}
             align="right"
@@ -290,6 +286,31 @@ export const CalendarItem: FC<{
           isBeforeNow && (state === 'QUEUE' || state === 'DRAFT') && 'grayscale!'
         )}
       >
+        {(showTime || status) && (
+          <div className="flex items-center gap-[6px] min-w-0">
+            {showTime && (
+              <span className="text-[11px] font-[600] leading-[14px] whitespace-nowrap" dir="ltr">
+                {newDayjs(post.publishDate)
+                  .local()
+                  .format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
+              </span>
+            )}
+            {status && (
+              <span
+                className={clsx(
+                  'inline-flex items-center gap-[3px] min-w-0 px-[5px] rounded-full text-[10px] font-[600] leading-[16px]',
+                  status.cls
+                )}
+                {...(status.tip
+                  ? { 'data-tooltip-id': 'tooltip', 'data-tooltip-content': status.tip }
+                  : {})}
+              >
+                <span aria-hidden="true">{status.icon}</span>
+                <span className="truncate">{status.label}</span>
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-[4px] min-w-0">
           <div className="relative shrink-0 w-[18px] h-[18px]">
             {/* eslint-disable-next-line @next/next/no-img-element -- external channel avatar */}
@@ -306,7 +327,7 @@ export const CalendarItem: FC<{
               height={9}
             />
           </div>
-          <div className="shrink-0 max-w-[55%] truncate text-[10px] font-semibold leading-[12px]">
+          <div className="shrink-0 max-w-[55%] truncate text-[11px] font-semibold leading-[14px]">
             {post.integration.name}
           </div>
           {handle && (
@@ -315,7 +336,7 @@ export const CalendarItem: FC<{
             </div>
           )}
         </div>
-        <div className="min-w-0 text-[10px] leading-[13px] whitespace-pre-wrap wrap-break-word line-clamp-3">
+        <div className="min-w-0 text-[12px] leading-[16px] whitespace-pre-wrap wrap-break-word line-clamp-2">
           {stripHtmlValidation('none', post.content, false, true, false) ||
             t('no_content', 'no content')}
         </div>
