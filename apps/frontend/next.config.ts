@@ -26,10 +26,13 @@ const isDev = process.env.NODE_ENV === 'development';
 // → the project's production domain, previews → their own deployment URL.
 // Set before Next compiles, so it is inlined like any NEXT_PUBLIC_ value.
 if (!process.env.NEXT_PUBLIC_BACKEND_URL && process.env.VERCEL) {
+  // VERCEL_PROJECT_PRODUCTION_URL can be missing on a project's very first
+  // deployment; fall back to the deployment's own URL then.
   const host =
-    process.env.VERCEL_ENV === 'production'
-      ? process.env.VERCEL_PROJECT_PRODUCTION_URL
-      : process.env.VERCEL_URL;
+    (process.env.VERCEL_ENV === 'production' &&
+      process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
+    process.env.VERCEL_URL ||
+    process.env.VERCEL_BRANCH_URL;
   if (host) {
     process.env.NEXT_PUBLIC_BACKEND_URL = `https://${host}/api`;
   }
