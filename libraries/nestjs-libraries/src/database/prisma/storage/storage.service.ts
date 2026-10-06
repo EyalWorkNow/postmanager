@@ -101,6 +101,10 @@ export class StorageService {
   }
 
   #buildAdapter(config: StorageConfigRow): IStorageAdapter {
+    if (config.type === StorageProviderType.LOCAL) {
+      const platform = this.#platformDefaultAdapter(config.organizationId);
+      if (platform) return platform;
+    }
     const decrypted = config.credentials
       ? (JSON.parse(this._encryptionService.decrypt(config.credentials)) as Record<string, string>)
       : {};
@@ -118,6 +122,37 @@ export class StorageService {
         },
       }
     );
+  }
+
+  // Platform default storage. Hosted deployments (Vercel, …) have no
+  // persistent disk, and Facebook/Instagram/TikTok fetch post media by public
+  // URL — so when DEFAULT_STORAGE_BUCKET is set, LOCAL (every org's default and
+  // fallback) writes to one platform bucket instead of UPLOAD_DIRECTORY. Orgs
+  // need no storage setup. The adapter still reports type LOCAL, so hosted
+  // quota metering and "LOCAL can't be deleted" behave exactly as before.
+  #platformDefaultAdapter(orgId: string): IStorageAdapter | null {
+    const env = process.env;
+    if (!env.DEFAULT_STORAGE_BUCKET) return null;
+    const cloud = this._resolution.resolveStorage(
+      env.DEFAULT_STORAGE_PROVIDER || 'cloudflare_r2',
+      {
+        version: 'v1',
+        credentials: {
+          accessKeyId: env.DEFAULT_STORAGE_ACCESS_KEY_ID || '',
+          secretAccessKey: env.DEFAULT_STORAGE_SECRET_ACCESS_KEY || '',
+        },
+        orgId,
+        extras: {
+          bucket: env.DEFAULT_STORAGE_BUCKET,
+          region: env.DEFAULT_STORAGE_REGION || null,
+          endpoint: env.DEFAULT_STORAGE_ENDPOINT || null,
+          publicUrl: env.DEFAULT_STORAGE_PUBLIC_URL || null,
+        },
+      }
+    );
+    return Object.create(cloud, {
+      type: { value: StorageProviderType.LOCAL, enumerable: true },
+    }) as IStorageAdapter;
   }
 
   #storageTypeToKernelId(type: StorageProviderType): string {

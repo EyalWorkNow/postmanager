@@ -732,3 +732,71 @@ describe('StorageService — getLocalAdapterForOrg', () => {
     );
   });
 });
+
+describe('StorageService — platform default storage (DEFAULT_STORAGE_*)', () => {
+  const ENV_KEYS = [
+    'DEFAULT_STORAGE_PROVIDER',
+    'DEFAULT_STORAGE_BUCKET',
+    'DEFAULT_STORAGE_ACCESS_KEY_ID',
+    'DEFAULT_STORAGE_SECRET_ACCESS_KEY',
+    'DEFAULT_STORAGE_ENDPOINT',
+    'DEFAULT_STORAGE_PUBLIC_URL',
+  ];
+  const saved: Record<string, string | undefined> = {};
+  beforeEach(() => {
+    for (const k of ENV_KEYS) saved[k] = process.env[k];
+  });
+  const restore = () => {
+    for (const k of ENV_KEYS) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  };
+
+  it('routes LOCAL to the platform bucket and still reports type LOCAL', async () => {
+    process.env.DEFAULT_STORAGE_BUCKET = 'postmanager-media';
+    process.env.DEFAULT_STORAGE_ACCESS_KEY_ID = 'AKIA';
+    process.env.DEFAULT_STORAGE_SECRET_ACCESS_KEY = 'secret';
+    process.env.DEFAULT_STORAGE_ENDPOINT = 'https://acct.r2.cloudflarestorage.com';
+    process.env.DEFAULT_STORAGE_PUBLIC_URL = 'https://media.example.com';
+    try {
+      const repo = makeRepo({ findByOrg: vi.fn().mockResolvedValue([]) });
+      const resolution = makeResolution();
+      const service = makeStorageService(repo, { create: vi.fn() } as unknown as AuditService, resolution);
+
+      const result = await service.getLocalAdapterForOrg('org-1');
+
+      expect(resolution.resolveStorage).toHaveBeenCalledWith(
+        'cloudflare_r2',
+        expect.objectContaining({
+          orgId: 'org-1',
+          credentials: { accessKeyId: 'AKIA', secretAccessKey: 'secret' },
+          extras: expect.objectContaining({
+            bucket: 'postmanager-media',
+            publicUrl: 'https://media.example.com',
+          }),
+        })
+      );
+      expect(result.type).toBe(StorageProviderType.LOCAL);
+      // Behaviour comes from the cloud adapter.
+      expect(result.writeBuffer).toBe(adapterMock.writeBuffer);
+    } finally {
+      restore();
+    }
+  });
+
+  it('keeps the disk adapter when no platform bucket is configured', async () => {
+    delete process.env.DEFAULT_STORAGE_BUCKET;
+    try {
+      const repo = makeRepo({ findByOrg: vi.fn().mockResolvedValue([]) });
+      const resolution = makeResolution();
+      const service = makeStorageService(repo, { create: vi.fn() } as unknown as AuditService, resolution);
+
+      await service.getLocalAdapterForOrg('org-1');
+
+      expect(resolution.resolveStorage).toHaveBeenCalledWith('local', expect.anything());
+    } finally {
+      restore();
+    }
+  });
+});
