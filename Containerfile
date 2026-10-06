@@ -4,6 +4,11 @@
 # Vercel the frontend is its own service and public routing (/api → backend,
 # prefix stripped by a request.path transform) replaces nginx.
 #
+# Named `Containerfile` because Vercel's container entrypoint must be a file
+# called Dockerfile or Containerfile, and the root `Dockerfile` is the
+# all-in-one production image. (Note: a bare `podman build .` prefers this
+# file over Dockerfile — pass `-f Dockerfile` for the all-in-one image.)
+#
 # This file lives at the repo root on purpose: Vercel uses the Dockerfile's own
 # directory as the build context, and the backend build needs the whole
 # workspace (pnpm-lock.yaml, libraries/*). From apps/backend the install failed

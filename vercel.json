@@ -11,7 +11,7 @@
     "backend": {
       "root": ".",
       "runtime": "container",
-      "entrypoint": "Dockerfile.backend",
+      "entrypoint": "Containerfile",
       "routes": [
         {
           "src": "/api/(.*)",
