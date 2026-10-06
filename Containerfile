@@ -41,12 +41,17 @@ COPY . /app
 #  3. re-run the same filtered install with --prod to drop devDependencies
 #     (scripts skipped: the generated Prisma client is already in place);
 #  4. delete the package store — node_modules are hard links into it.
-RUN pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store \
+# DIAG lines print disk usage at each stage (temporary — diagnosing Vercel's
+# "no space left on device"); remove once the build is green.
+RUN echo "DIAG start" && df -h / /tmp /var/tmp 2>/dev/null; \
+    pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store \
       --filter "{.}" --filter "{./apps/backend}..." \
+ && echo "DIAG after-install" && du -sh /app/node_modules /tmp/pnpm-store && df -h / \
  && NODE_OPTIONS="--max-old-space-size=4096" pnpm run build:backend \
  && CI=true pnpm install --frozen-lockfile --prod --offline --ignore-scripts \
       --store-dir /tmp/pnpm-store --filter "{.}" --filter "{./apps/backend}..." \
- && rm -rf /tmp/pnpm-store /root/.cache /root/.local/share/pnpm
+ && rm -rf /tmp/pnpm-store /root/.cache /root/.local/share/pnpm \
+ && echo "DIAG final" && du -sh /app /app/node_modules /app/apps/backend/dist && df -h /
 
 # ---------- runtime ----------
 FROM node:24.19.0-bookworm-slim AS runtime

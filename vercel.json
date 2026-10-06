@@ -5,8 +5,14 @@
       "root": "apps/frontend",
       "framework": "nextjs",
       "bindings": [
-        { "type": "service", "service": "backend", "format": "url", "env": "BACKEND_URL" }
-      ]
+        {
+          "type": "service",
+          "service": "backend",
+          "format": "url",
+          "env": "BACKEND_URL"
+        }
+      ],
+      "buildCommand": "echo DIAG-frontend-before && df -h / /vercel /tmp 2>/dev/null; du -sh ../../node_modules ~/.local/share/pnpm ~/.cache 2>/dev/null; pnpm run build && echo DIAG-frontend-after && df -h / && du -sh .next 2>/dev/null"
     },
     "backend": {
       "root": ".",
@@ -15,13 +21,29 @@
       "routes": [
         {
           "src": "/api/(.*)",
-          "transforms": [{ "type": "request.path", "op": "set", "args": "/$1" }]
+          "transforms": [
+            {
+              "type": "request.path",
+              "op": "set",
+              "args": "/$1"
+            }
+          ]
         }
       ]
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "backend" } },
-    { "source": "/(.*)", "destination": { "service": "frontend" } }
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "frontend"
+      }
+    }
   ]
 }
