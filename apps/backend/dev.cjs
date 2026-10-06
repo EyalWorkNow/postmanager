@@ -82,6 +82,10 @@ const poll = setInterval(() => {
   console.log('[dev] compiled dist ready → starting backend (node --watch)');
   run(process.execPath, [
     '--watch',
+    // Only dist: a plain --watch also tracks every loaded node_modules file, and
+    // macOS Spotlight/Time Machine metadata touches there caused a restart loop.
+    '--watch-path',
+    path.join(root, 'dist'),
     '--enable-source-maps',
     ...inspectFlag,
     '-r',

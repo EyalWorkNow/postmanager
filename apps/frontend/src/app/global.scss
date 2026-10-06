@@ -986,3 +986,12 @@ html[dir='rtl'] [dir='ltr'] {
     scroll-behavior: auto !important;
   }
 }
+
+/* Hebrew uses the same readable typeface across headings, forms and navigation. */
+html[lang="he"] {
+  h1, h2, h3, h4, input, textarea, button, select { font-family: inherit; }
+  input[type="email"], input[type="url"], input[type="password"] { direction: ltr; text-align: start; }
+  :focus-visible { outline: 2px solid var(--positive) !important; outline-offset: 3px; }
+}
+.studio-shell #left-menu { inset-inline-start: 24px; }
+@media (max-width: 800px) { .studio-shell { padding: 8px; padding-block-end: 80px; } }

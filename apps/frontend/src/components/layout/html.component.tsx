@@ -21,8 +21,9 @@ export const HtmlComponent: FC = () => {
     const htmlElement = document.querySelector('html');
     if (htmlElement) {
       htmlElement.setAttribute('dir', dir);
+      htmlElement.setAttribute('lang', settings.resolvedLanguage || 'he');
     }
-  }, [dir]);
+  }, [dir, settings]);
 
   return null;
 };

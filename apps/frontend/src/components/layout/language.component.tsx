@@ -23,6 +23,7 @@ countries.registerLocale(countriesEn);
 const getCountryCodeForFlag = (languageCode: string) => {
   // For multi-region languages, here are some common defaults
   if (languageCode === 'en') return 'GB';
+  if (languageCode === 'he') return 'IL';
   if (languageCode === 'es') return 'ES';
   if (languageCode === 'ar') return 'SA';
   if (languageCode === 'zh') return 'CN';

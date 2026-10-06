@@ -4,7 +4,7 @@ import React, { ReactNode, useCallback, useState, useRef, useEffect } from 'reac
 import { Logo } from '@postmill-ai/frontend/components/new-layout/logo';
 import { Wordmark } from '@postmill-ai/frontend/components/new-layout/wordmark';
 import { UserAvatarMenu } from '@postmill-ai/frontend/components/new-layout/user-avatar-menu';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Heebo } from 'next/font/google';
 const ModeComponent = dynamic(
   () => import('@postmill-ai/frontend/components/layout/mode.component'),
   {
@@ -68,10 +68,10 @@ const BulkImport = dynamic(
   { ssr: false }
 );
 
-const jakartaSans = Plus_Jakarta_Sans({
-  weight: ['600', '500', '700'],
-  style: ['normal', 'italic'],
-  subsets: ['latin'],
+const jakartaSans = Heebo({
+  weight: ['400', '500', '600', '700'],
+  style: ['normal'],
+  subsets: ['hebrew', 'latin'],
 });
 
 export const LayoutComponent = ({ children }: { children: ReactNode }) => {
@@ -191,7 +191,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
             <ContinueProvider />
             <div
               className={clsx(
-                'flex flex-col min-h-screen min-w-full text-newTextColor p-[12px] mobile:pb-[72px]',
+                'flex flex-col min-h-screen min-w-full text-newTextColor p-[16px] studio-shell mobile:pb-[72px]',
                 jakartaSans.className
               )}
             >
@@ -202,7 +202,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                   <AnnouncementBanner />
                   <div className="flex-1 flex gap-[8px]">
                     <Support />
-                    <div className="mobile:hidden flex flex-col bg-newBgColorInner w-[80px] rounded-[12px]">
+                    <div className="mobile:hidden flex flex-col bg-newBgColorInner w-[80px] rounded-[26px]">
                       <div
                         id="left-menu"
                         className={clsx(
@@ -217,8 +217,8 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-px blurMe">
-                      <div className="flex bg-newBgColorInner h-[56px] lg:h-[80px] px-[20px] items-center">
+                    <div className="flex-1 min-w-0 bg-newBgColor rounded-[26px] overflow-hidden flex flex-col gap-px blurMe">
+                      <div className="flex bg-newBgColor h-[56px] lg:h-[80px] px-[20px] items-center">
                         <div className="text-[24px] font-[600] flex flex-1 items-center gap-[10px] min-w-0">
                           {/* Mobile: the left rail is hidden, so always show the
                               icon; add the wordmark only on the dashboard. */}

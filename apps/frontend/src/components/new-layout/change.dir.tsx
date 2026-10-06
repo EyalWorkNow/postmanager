@@ -13,7 +13,7 @@ export const ChangeDir: FC = () => {
   const [language] = useCookie(cookieName, currentLanguage || fallbackLng);
 
   useEffect(() => {
-    const rtlLanguages = ['ar'];
+    const rtlLanguages = ['ar', 'he'];
     const dir = rtlLanguages.includes(language) ? 'rtl' : 'ltr';
     document.documentElement.setAttribute('dir', dir);
   }, [language]);

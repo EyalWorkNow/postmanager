@@ -6,6 +6,7 @@ const ReturnUrlComponent: FC = () => {
   const params = useSearchParams();
   const url = params.get('returnUrl');
   useEffect(() => {
+    if (!url) return;
     try {
       // Resolved against our own origin so a relative returnUrl is honoured
       // rather than throwing into the catch below and vanishing; the origin

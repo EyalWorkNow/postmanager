@@ -14,7 +14,7 @@ import 'react-tooltip/dist/react-tooltip.css';
 import '@copilotkit/react-ui/styles.css';
 import LayoutContext from '@postmill-ai/frontend/components/layout/layout.context';
 import { ReactNode } from 'react';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Heebo } from 'next/font/google';
 import PlausibleProvider from 'next-plausible';
 import clsx from 'clsx';
 import { VariableContextComponent } from '@postmill-ai/react/helpers/variable.context';
@@ -36,10 +36,10 @@ import Script from 'next/script';
 import { ChangeDirClient } from '@postmill-ai/frontend/components/new-layout/change.dir.client';
 import { ChunkErrorRecovery } from '@postmill-ai/frontend/components/layout/chunk-error-recovery';
 
-const jakartaSans = Plus_Jakarta_Sans({
-  weight: ['600', '500'],
-  style: ['normal', 'italic'],
-  subsets: ['latin'],
+const jakartaSans = Heebo({
+  weight: ['400', '500', '600', '700'],
+  style: ['normal'],
+  subsets: ['hebrew', 'latin'],
 });
 
 // Default document title for every route (a11y: `document-title` was empty on ~89 routes —
@@ -65,7 +65,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     (paymentsVars.billingEnabled ? 'postmill.ai' : '');
   const Plausible = plausibleDomain ? PlausibleProvider : Fragment;
   return (
-    <html lang="en">
+    <html lang={language} dir={['he', 'ar'].includes(language) ? 'rtl' : 'ltr'}>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         {!!process.env.DATAFAST_WEBSITE_ID && (

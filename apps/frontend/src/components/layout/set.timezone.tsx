@@ -3,6 +3,8 @@ import dayjs, { ConfigType } from 'dayjs';
 import { FC, useEffect } from 'react';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
+import 'dayjs/locale/he';
+import i18next from '@postmill-ai/react/translation/i18next';
 import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(timezone);
 dayjs.extend(utc);
@@ -43,6 +45,9 @@ export const getTimezoneAbbr = (d?: dayjs.Dayjs) => {
 
 const SetTimezone: FC = () => {
   useEffect(() => {
+    const updateLocale = (language: string) => dayjs.locale(language === 'he' ? 'he' : 'en');
+    updateLocale(i18next.resolvedLanguage || 'he');
+    i18next.on('languageChanged', updateLocale);
     dayjs.utc = (config?: ConfigType, format?: string, strict?: boolean) => {
       const result = originalUtc(config, format, strict);
 
@@ -56,6 +61,7 @@ const SetTimezone: FC = () => {
     if (localStorage.getItem('timezone')) {
       dayjs.tz.setDefault(getTimezone());
     }
+    return () => { i18next.off('languageChanged', updateLocale); };
   }, []);
   return null;
 };

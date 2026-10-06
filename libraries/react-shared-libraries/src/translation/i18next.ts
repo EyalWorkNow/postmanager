@@ -15,7 +15,7 @@ i18next
   )
   .init({
     supportedLngs: languages,
-    fallbackLng,
+    fallbackLng: [fallbackLng, 'en'],
     lng: undefined,
     fallbackNS: defaultNS,
     defaultNS,
