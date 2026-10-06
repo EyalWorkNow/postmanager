@@ -31,9 +31,22 @@ RUN npm --no-update-notifier --no-fund --global install pnpm@10.34.4
 WORKDIR /app
 COPY . /app
 
-RUN pnpm install --frozen-lockfile
-RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm run build:backend
-RUN CI=true pnpm prune --prod
+# One RUN on purpose, so only the final (pruned) tree becomes a layer: a
+# full-workspace install committed as its own layer (173 projects incl. the
+# Next.js frontend, ~5 GB) ran Vercel's build machine out of disk
+# ("no space left on device").
+#  1. install only the root (prisma generate runs in its postinstall) and the
+#     backend with its workspace dependencies — no frontend/extension/docs;
+#  2. build the backend;
+#  3. re-run the same filtered install with --prod to drop devDependencies
+#     (scripts skipped: the generated Prisma client is already in place);
+#  4. delete the package store — node_modules are hard links into it.
+RUN pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store \
+      --filter "{.}" --filter "{./apps/backend}..." \
+ && NODE_OPTIONS="--max-old-space-size=4096" pnpm run build:backend \
+ && CI=true pnpm install --frozen-lockfile --prod --offline --ignore-scripts \
+      --store-dir /tmp/pnpm-store --filter "{.}" --filter "{./apps/backend}..." \
+ && rm -rf /tmp/pnpm-store /root/.cache /root/.local/share/pnpm
 
 # ---------- runtime ----------
 FROM node:24.19.0-bookworm-slim AS runtime
