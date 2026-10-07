@@ -24,3 +24,12 @@ scripts
 **/.env*
 **/.env.*
 .envrc
+# Vercel builds the backend container (Containerfile) in the same checkout,
+# right after the frontend build: its build output and caches must never
+# enter the image context (COPY . took 6 min and filled the build disk).
+.vercel
+**/.vercel
+**/.next
+**/.turbo
+**/.cache
+uploads

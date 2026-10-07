@@ -43,7 +43,7 @@ COPY . /app
 #  4. delete the package store — node_modules are hard links into it.
 # DIAG lines print disk usage at each stage (temporary — diagnosing Vercel's
 # "no space left on device"); remove once the build is green.
-RUN echo "DIAG start" && df -h / /tmp /var/tmp 2>/dev/null; \
+RUN echo "DIAG start" && df -h / /tmp /var/tmp 2>/dev/null; echo "DIAG context"; du -sh /app; du -sh /app/* /app/.[!.]* 2>/dev/null | sort -h | tail -8; \
     pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store \
       --filter "{.}" --filter "{./apps/backend}..." \
  && echo "DIAG after-install" && du -sh /app/node_modules /tmp/pnpm-store && df -h / \
