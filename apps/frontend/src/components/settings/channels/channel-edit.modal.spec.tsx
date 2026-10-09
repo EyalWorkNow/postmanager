@@ -89,7 +89,7 @@ const EDIT_CONFIG = {
 
 function renderForm(
   platformConfigured: boolean,
-  opts: { withSetup?: boolean; edit?: boolean; simple?: boolean } = {}
+  opts: { withSetup?: boolean; edit?: boolean; simple?: boolean; identifier?: string } = {}
 ) {
   const onClose = vi.fn();
   const onSaved = vi.fn();
@@ -101,7 +101,7 @@ function renderForm(
         // instagram-standalone is a main network: it opens on the simple
         // one-button screen; these specs cover the technical form unless asked.
         startTechnical={!opts.simple}
-        identifier="instagram-standalone"
+        identifier={opts.identifier || 'instagram-standalone'}
         providerName="Instagram (Standalone)"
         platformConfigured={platformConfigured}
         setup={opts.withSetup ? OAUTH_SETUP : null}
@@ -431,7 +431,7 @@ describe('ChannelConfigForm platform-app connect', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('warns instead of opening a popup when the initiation returns err', async () => {
+  it('shows a persistent error instead of opening a popup when initiation returns err', async () => {
     mockConnectSequence({ err: true });
 
     renderForm(true, { withSetup: true });
@@ -444,10 +444,7 @@ describe('ChannelConfigForm platform-app connect', () => {
     );
 
     await waitFor(() =>
-      expect(mockToast).toHaveBeenCalledWith(
-        'Could not connect to the platform',
-        'warning'
-      )
+      expect(screen.getByRole('alert').textContent).toContain('Check the app settings and try again')
     );
     expect(openSpy).not.toHaveBeenCalled();
   });
@@ -857,13 +854,67 @@ describe('ChannelConfigForm simple mode (main networks)', () => {
     expect(openSpy.mock.calls[0][0]).toBe('https://oauth.example/auth');
   });
 
-  it('without an app explains it is not switched on and offers the installer link', () => {
+  it('without an app opens guided setup in the same form', () => {
     renderForm(false, { withSetup: true, simple: true });
-    expect(screen.getByText('Instagram is not switched on yet')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Copy a link to send to the installer' })).toBeTruthy();
+    expect(screen.getByText('Set up Instagram once, then connect')).toBeTruthy();
+    expect(screen.getByText(/This connection does not require a Facebook Page/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Connect with Instagram' })).toBeNull();
-    // The technical setup is still one click away.
-    fireEvent.click(screen.getByRole('button', { name: /technical setup myself/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start guided setup' }));
     expect(screen.getByText('Instagram App ID')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Meta for Developers/ }).getAttribute('href')).toBe('https://developers.facebook.com/apps');
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the simple screen' }));
+    expect(screen.getByRole('button', { name: 'Start guided setup' })).toBeTruthy();
+  });
+
+  it.each([
+    ['facebook', 'Personal Facebook profiles cannot be connected'],
+    ['instagram', 'linked to a Facebook Page you manage'],
+  ])('explains the account requirement for %s before setup', (identifier, requirement) => {
+    renderForm(false, { withSetup: true, simple: true, identifier });
+    expect(screen.getByText(new RegExp(requirement))).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start guided setup' })).toBeTruthy();
+  });
+
+  it('keeps a save failure visible without starting OAuth', async () => {
+    mockFetch.mockImplementation((url: string) => Promise.resolve({
+      ok: url !== '/channels/config',
+      json: async () => ({ integrations: [] }),
+    }));
+    renderForm(true, { withSetup: true, simple: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect with Instagram' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Could not save the connection settings'));
+    expect(openSpy).not.toHaveBeenCalled();
+    expect(mockFetch.mock.calls.some(([url]) => url.startsWith('/integrations/social/'))).toBe(false);
+  });
+
+  it('keeps connection failures visible and lets the user retry the saved set', async () => {
+    openSpy.mockReturnValue({ closed: false });
+    mockFetch.mockImplementation((url: string) => {
+      if (url.startsWith('/integrations/social/')) return Promise.reject(new Error('Network unavailable'));
+      return Promise.resolve({ ok: true, json: async () => ({ id: 'cfg-1', integrations: [] }) });
+    });
+    renderForm(true, { withSetup: true, simple: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect with Instagram' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('The server is temporarily unavailable'));
+    expect(openSpy).not.toHaveBeenCalled();
+    mockFetch.mockImplementation((url: string) => Promise.resolve({
+      ok: true,
+      json: async () => url.startsWith('/integrations/social/') ? { url: 'https://oauth.example/auth' } : { id: 'cfg-1' },
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect with Instagram' }));
+    await waitFor(() => expect(openSpy).toHaveBeenCalled());
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(mockFetch).toHaveBeenCalledWith('/channels/config/cfg-1', expect.objectContaining({ method: 'PUT' }));
+  });
+
+  it('shows an actionable error when the server rejects connection initiation', async () => {
+    mockFetch.mockImplementation((url: string) => Promise.resolve({
+      ok: !url.startsWith('/integrations/social/'),
+      json: async () => ({ id: 'cfg-1', integrations: [] }),
+    }));
+    renderForm(true, { withSetup: true, simple: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect with Instagram' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Check the app settings and try again'));
+    expect(openSpy).not.toHaveBeenCalled();
   });
 });

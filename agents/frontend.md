@@ -36,6 +36,12 @@ New authenticated pages go under `(app)/(site)/<feature>/page.tsx`.
 
 ## Data fetching — SWR via `useFetch`
 
+Featured channel setup stays in `ChannelConfigForm`: when no OAuth app is configured,
+the primary action opens the guided credentials form in the same modal. Meta channels
+show their account prerequisites before setup or connection. OAuth initiation and save
+failures remain visible in an accessible alert; retries reuse the created configuration.
+Do not replace this flow with a clipboard-only link to another settings page.
+
 `useFetch` comes from `libraries/helpers/src/utils/custom.fetch.tsx`
 (alias `@postmill-ai/helpers/utils/custom.fetch`); it returns the fetch function built by
 `custom.fetch.func.ts` and provided via `FetchWrapperComponent` (mounted in

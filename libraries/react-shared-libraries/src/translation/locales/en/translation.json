@@ -4498,5 +4498,15 @@
   "filter_priority": "Filter by priority",
   "comment_inbox.sort_priority_first": "High priority first",
   "comms": "Comms",
-  "comms_settings_description": "Chat with your Postmill agent and receive notifications in your team’s chat apps."
+  "comms_settings_description": "Chat with your Postmill agent and receive notifications in your team’s chat apps.",
+  "channel_connect_failed_retry": "The connection could not start. Check the app settings and try again.",
+  "channel_connect_network_retry": "The server is temporarily unavailable. Your settings are saved. Try connecting again.",
+  "meta_before_connecting": "Before connecting",
+  "meta_facebook_requirement": "Use a Facebook Page you manage. Personal Facebook profiles cannot be connected for publishing.",
+  "meta_instagram_linked_requirement": "Use a professional Instagram account linked to a Facebook Page you manage.",
+  "meta_instagram_direct_requirement": "Use a professional Instagram account (Business or Creator). This connection does not require a Facebook Page.",
+  "channel_setup_needed_title": "Set up {{brand}} once, then connect",
+  "channel_setup_needed_body": "This installation does not have an app configured for this network yet. We will guide you through adding its app keys here, then open the account login. Your account password is only entered on the network’s own site.",
+  "channel_setup_start": "Start guided setup",
+  "channel_connect_save_retry": "Could not save the connection settings. Check your connection and try again."
 }

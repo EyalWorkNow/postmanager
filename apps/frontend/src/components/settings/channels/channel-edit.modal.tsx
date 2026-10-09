@@ -23,8 +23,8 @@ const PROVIDER_APP_LINKS: Record<string, { label: string; url: string | null }> 
   linkedin: { label: 'LinkedIn Developer Portal', url: 'https://www.linkedin.com/developers/apps' },
   x: { label: 'X Developer Portal', url: 'https://developer.x.com/en/portal/dashboard' },
   facebook: { label: 'Facebook Developers', url: 'https://developers.facebook.com/apps' },
-  instagram: { label: 'Instagram Basic Display', url: 'https://developers.facebook.com/docs/instagram-basic-display-api' },
-  'instagram-standalone': { label: 'Instagram Basic Display', url: 'https://developers.facebook.com/docs/instagram-basic-display-api' },
+  instagram: { label: 'Meta for Developers', url: 'https://developers.facebook.com/apps' },
+  'instagram-standalone': { label: 'Meta for Developers', url: 'https://developers.facebook.com/apps' },
   threads: { label: 'Threads Developer', url: 'https://developers.facebook.com/docs/threads' },
   youtube: { label: 'Google Cloud Console', url: 'https://console.cloud.google.com/apis/credentials' },
   tiktok: { label: 'TikTok for Developers', url: 'https://developers.tiktok.com/apps' },
@@ -158,7 +158,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   // Main networks show a plain one-button screen; the developer-app setup is a
   // separate "technical" view for whoever installs the system.
   const [technical, setTechnical] = useState(!!startTechnical);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [tokenNonce, setTokenNonce] = useState<{ nonce: string; id: string } | null>(null);
 
   // Connected channels for this provider (the composer list) — after a
@@ -423,7 +423,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
         setConnecting(false);
       }
     },
-    [fetch, identifier, enabled, toaster, t, onSaved, onClose]
+    [fetch, identifier, enabled, toaster, t, onSaved, onClose, onConnected]
   );
 
   // Token-provider connect (Telegram/LINE bot tokens): save the set, mint the
@@ -512,6 +512,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   // (continue.integration) detects the popup, notifies this opener, and closes
   // itself; the poll is the fallback for a missed message / manual close.
   const handleConnect = useCallback(async () => {
+    setConnectError(null);
     if (isToken) {
       return handleTokenConnect();
     }
@@ -525,7 +526,10 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
       return;
     }
     const saved = await saveConfig(hasPlatformApp ? undefined : { enable: true });
-    if (!saved) return;
+    if (!saved) {
+      setConnectError(t('channel_connect_save_retry', 'Could not save the connection settings. Check your connection and try again.'));
+      return;
+    }
     const id = saved.id;
     if (!id) {
       // Should not happen — the API returns the created row — but the OAuth
@@ -538,10 +542,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
       const response = await fetch(`/integrations/social/${identifier}?config=${id}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.err || !data.url) {
-        toaster.show(
-          t('could_not_connect_to_platform', 'Could not connect to the platform'),
-          'warning'
-        );
+        setConnectError(t('channel_connect_failed_retry', 'The connection could not start. Check the app settings and try again.'));
         return;
       }
       const popup = window.open(data.url, 'postmill-oauth', 'width=640,height=720,popup');
@@ -582,10 +583,12 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
         window.clearInterval(poll);
       };
       window.addEventListener('message', onMessage);
+    } catch {
+      setConnectError(t('channel_connect_network_retry', 'The server is temporarily unavailable. Your settings are saved. Try connecting again.'));
     } finally {
       setConnecting(false);
     }
-  }, [saveConfig, fetch, identifier, enabled, toaster, t, onSaved, onClose, isToken, handleTokenConnect, hasPlatformApp, isConfigured, clientId, clientSecret]);
+  }, [saveConfig, fetch, identifier, enabled, toaster, t, onSaved, onClose, onConnected, isToken, handleTokenConnect, hasPlatformApp, isConfigured, clientId, clientSecret]);
 
   const handleDelete = useCallback(async () => {
     if (!config) return;
@@ -636,6 +639,24 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
 
   // Plain-language Hebrew guide for the featured networks; null → adapter text.
   const guide = channelGuide(t, identifier);
+  const metaNetwork = ['facebook', 'instagram', 'instagram-standalone'].includes(identifier);
+  const connectionErrorBlock = connectError && (
+    <div role="alert" className="w-full rounded-[12px] border border-newTableBorder p-[16px] text-start text-dangerText">
+      {connectError}
+    </div>
+  );
+  const metaRequirementsBlock = metaNetwork && (
+    <div className="w-full rounded-[12px] border border-newTableBorder bg-newBgColorInner p-[16px] text-start">
+      <h3 className="text-[16px] font-[600] mb-[8px]">{t('meta_before_connecting', 'Before connecting')}</h3>
+      <p className="text-[14px] leading-[1.7] text-newTableText">
+        {identifier === 'facebook'
+          ? t('meta_facebook_requirement', 'Use a Facebook Page you manage. Personal Facebook profiles cannot be connected for publishing.')
+          : identifier === 'instagram'
+            ? t('meta_instagram_linked_requirement', 'Use a professional Instagram account linked to a Facebook Page you manage.')
+            : t('meta_instagram_direct_requirement', 'Use a professional Instagram account (Business or Creator). This connection does not require a Facebook Page.')}
+      </p>
+    </div>
+  );
   const setupSteps = guide?.steps || setup?.setupSteps || [];
   const callbackHelp = guide?.callbackHelp || setup?.callbackInstructions;
   const httpsBlocked = !!guide?.requiresHttps && callbackUrl.startsWith('http://');
@@ -1102,19 +1123,6 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
         : identifier === 'linkedin'
           ? t('fc_simple_s3_profile', 'Approve — done')
           : t('fc_simple_s3', 'Choose your business page and approve — done');
-    const techLink = () => {
-      const url = `${window.location.origin}/settings/channels?setup=${identifier}&tech=1`;
-      navigator.clipboard
-        .writeText(url)
-        .then(() => {
-          setLinkCopied(true);
-          toaster.show(
-            t('fc_link_copied', 'Link copied — paste it into WhatsApp or an email to your installer'),
-            'success'
-          );
-        })
-        .catch(() => toaster.show(t('copy_failed', 'Copy failed'), 'warning'));
-    };
     return (
       <div className="flex flex-col items-center gap-[24px] w-[560px] max-w-full py-[8px] text-center">
         <Image
@@ -1124,6 +1132,8 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
           height={72}
           className="rounded-full"
         />
+        {metaRequirementsBlock}
+        {connectionErrorBlock}
         {connectedChannels.length > 0 && (
           <div className="w-full flex items-center justify-center gap-[8px] rounded-[12px] bg-green-600/10 border border-green-600/30 p-[14px]">
             <span className="text-[20px]" aria-hidden="true">✓</span>
@@ -1155,10 +1165,12 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
                 {t('fc_simple_https', '{{brand}} can only be connected once the system is online at a secure address. Please ask your installer.', { brand: brandName })}
               </div>
             ) : (
-              <button
+              <Button
                 type="button"
                 onClick={handleConnect}
+                loading={saving || connecting}
                 disabled={saving || connecting}
+                aria-busy={saving || connecting}
                 className="w-full h-[60px] rounded-[14px] bg-btnPrimary text-white hover:opacity-90 transition-opacity disabled:opacity-60"
               >
                 <span className="text-[19px] font-[700]">
@@ -1168,7 +1180,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
                       ? t('fc_simple_connect_more', 'Connect another {{brand}} account', { brand: brandName })
                       : t('fc_simple_connect', 'Connect with {{brand}}', { brand: brandName })}
                 </span>
-              </button>
+              </Button>
             )}
             <p className="flex items-start gap-[10px] text-start text-[16px] leading-[1.6] text-newTableText">
               <span className="text-[18px]" aria-hidden="true">🔒</span>
@@ -1179,29 +1191,27 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
           <>
             <div className="flex flex-col gap-[10px]">
               <h3 className="text-[22px] font-[700] text-textColor">
-                {t('fc_simple_not_ready_title', '{{brand}} is not switched on yet', { brand: brandName })}
+                {t('channel_setup_needed_title', 'Set up {{brand}} once, then connect', { brand: brandName })}
               </h3>
               <p className="text-[18px] leading-[1.6] text-textColor">
                 {t(
-                  'fc_simple_not_ready_body',
-                  'Before the first connection, a short technical setup is needed — once only. The person who installed the system for you can do it in about 10 minutes. After that, connecting is one click.'
+                  'channel_setup_needed_body',
+                  'This installation does not have an app configured for this network yet. We will guide you through adding its app keys here, then open the account login. Your account password is only entered on the network’s own site.'
                 )}
               </p>
             </div>
-            <button
+            <Button
               type="button"
-              onClick={techLink}
+              onClick={() => setTechnical(true)}
               className="w-full h-[60px] rounded-[14px] bg-btnPrimary text-white hover:opacity-90 transition-opacity"
             >
               <span className="text-[19px] font-[700]">
-                {linkCopied
-                  ? t('fc_simple_link_copied_btn', 'Link copied ✓')
-                  : t('fc_simple_copy_link', 'Copy a link to send to the installer')}
+                {t('channel_setup_start', 'Start guided setup')}
               </span>
-            </button>
+            </Button>
           </>
         )}
-        <button
+        {ready && <button
           type="button"
           onClick={() => setTechnical(true)}
           className="text-newTableText hover:text-textColor hover:underline"
@@ -1211,7 +1221,7 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
               ? t('fc_simple_tech_settings', 'Technical settings')
               : t('fc_simple_do_it_myself', 'I’ll do the technical setup myself')}
           </span>
-        </button>
+        </button>}
       </div>
     );
   }
@@ -1221,6 +1231,8 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
   if (hasPlatformApp) {
     return (
       <div className="flex flex-col gap-[16px] w-[640px] max-w-full">
+        {metaRequirementsBlock}
+        {connectionErrorBlock}
         {portalLinkBlock}
         {nameBlock}
         {connectBlock}
@@ -1276,6 +1288,8 @@ export const ChannelConfigForm: FC<ChannelConfigFormProps> = ({
             <span className="text-[14px]">{t('fc_back_simple', 'Back to the simple screen')}</span>
           </button>
         )}
+        {metaRequirementsBlock}
+        {connectionErrorBlock}
         {portalLinkBlock}
         {setupStepsBlock}
         {/* Only what the guide asks for up front; optional keys and the
