@@ -546,6 +546,22 @@ describe('AuthService (backend)', () => {
       activated: true,
     };
 
+    it('accepts the same email casing as registration', async () => {
+      usersService.getUserByEmail.mockImplementation(async (email: string) =>
+        email === existingUser.email ? { ...existingUser } : null
+      );
+      authCheckerMock.comparePassword.mockReturnValue(true);
+
+      const result = await service.routeAuth(
+        Provider.LOCAL,
+        makeLoginBody({ email: 'User@Example.com' }),
+        'ip',
+        'ua'
+      );
+
+      expect(result.jwt).toBe('jwt:user-1');
+    });
+
     it('rejects an unknown email', async () => {
       usersService.getUserByEmail.mockResolvedValue(null);
 

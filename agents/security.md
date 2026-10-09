@@ -1,5 +1,11 @@
 # Security invariants (do not break)
 
+- Session cookie domains respect private hosting suffixes. Railway `*.up.railway.app`
+  deployments scope cookies to their exact hostname; custom domains retain subdomain
+  sharing. Enforcement: `libraries/helpers/src/subdomain/subdomain.management.ts`.
+- LOCAL login normalizes email to lowercase, matching registration, before account
+  lookup. Enforcement: `apps/backend/src/services/auth/auth.service.ts` (`routeAuth`).
+
 LLM-facing ruleset for the Postmill monorepo. Each rule: statement, why (one clause),
 enforcement point (exact file/symbol). Cross-refs: `agents/backend.md`,
 `agents/database.md`, `agents/providers/overview.md`, `agents/jobs.md`.
