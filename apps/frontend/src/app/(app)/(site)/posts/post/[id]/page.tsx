@@ -11,6 +11,7 @@ import { LoadingComponent } from '@postmill-ai/frontend/components/layout/loadin
 import { EmptyState } from '@postmill-ai/frontend/components/ui/empty-state';
 import { Button } from '@postmill-ai/react/form/button';
 import { useT } from '@postmill-ai/react/translation/get.transation.service.client';
+import { ErrorState } from '@postmill-ai/frontend/components/analytics/kit/states';
 
 export default function EditPostPage() {
   const fetch = useFetch();
@@ -20,14 +21,24 @@ export default function EditPostPage() {
   const groupId = params.id as string;
 
   const loadIntegrations = useCallback(async (path: string) => {
-    return (await (await fetch(path)).json()).integrations;
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`Could not load channels (${response.status})`);
+    return (await response.json()).integrations;
   }, [fetch]);
 
   const loadPost = useCallback(async (path: string) => {
-    return await (await fetch(path)).json();
+    const response = await fetch(path);
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`Could not load post (${response.status})`);
+    return await response.json();
   }, [fetch]);
 
-  const { data: integrations, isLoading: integrationsLoading } = useSWR<
+  const {
+    data: integrations,
+    isLoading: integrationsLoading,
+    error: integrationsError,
+    mutate: reloadIntegrations,
+  } = useSWR<
     Integrations[]
   >('/integrations/list', loadIntegrations,
     {
@@ -41,7 +52,12 @@ export default function EditPostPage() {
     }
   );
 
-  const { data: postData, isLoading: postLoading } = useSWR(
+  const {
+    data: postData,
+    isLoading: postLoading,
+    error: postError,
+    mutate: reloadPost,
+  } = useSWR(
     groupId ? `/posts/group/${groupId}` : null,
     loadPost,
     {
@@ -54,13 +70,26 @@ export default function EditPostPage() {
     }
   );
 
+  if (integrationsError || postError) {
+    return (
+      <ErrorState
+        title={t('failed_to_load_post_details', 'Could not load post details')}
+        message={t('please_try_again_later', 'Please try again later.')}
+        onRetry={() => {
+          void reloadIntegrations();
+          void reloadPost();
+        }}
+      />
+    );
+  }
+
   if (integrationsLoading || postLoading) {
     return <LoadingComponent />;
   }
 
   // Never blank-page: a deleted post or a since-disconnected channel both
   // used to render `null` with no way out.
-  if (!postData) {
+  if (!postData?.posts?.length) {
     return (
       <div className="flex justify-center p-[40px]">
         <EmptyState
@@ -80,12 +109,13 @@ export default function EditPostPage() {
     );
   }
 
-  if (!integrations.length) {
+  const postIntegrations = (integrations || []).filter((item) => item.id === postData.integration);
+  if (!postIntegrations.length) {
     return (
       <div className="flex justify-center p-[40px]">
         <EmptyState
           className="w-full max-w-[480px]"
-          title={t('composer_no_channels_title', 'No channels connected')}
+          title={t('channel_disconnected_click_to_reconnect', 'This account is disconnected. Connect it again.')}
           description={t(
             'composer_no_channels_desc',
             'Connect a channel to start composing and scheduling posts.'
@@ -107,9 +137,7 @@ export default function EditPostPage() {
   return (
     <ExistingDataContextProvider value={postData}>
       <Composer
-        integrations={integrations.filter(
-          (f) => f.id === postData.integration
-        )}
+        integrations={postIntegrations}
         allIntegrations={integrations}
         date={publishDate}
       />
