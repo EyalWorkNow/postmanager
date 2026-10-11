@@ -85,6 +85,7 @@
 
 .publishing-guide { margin-block-end: 28px; }
 .publishing-guide .studio-card-heading { flex-wrap: wrap; }
+.publishing-guide .studio-card-heading > span { font-size: 14px; line-height: 1.6; }
 .publishing-guide-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; list-style: none; padding: 0; }
 .publishing-guide-step { display: flex; gap: 14px; padding: 22px; border-radius: 26px; }
 .publishing-guide-number { display: grid; place-items: center; inline-size: 42px; block-size: 42px; flex-shrink: 0; border-radius: 50%; font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 600; }
