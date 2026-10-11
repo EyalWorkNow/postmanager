@@ -53,6 +53,9 @@ export const Composer: FC<ComposerProps> = (props) => {
     );
 
   const integrations = useLaunchStore((state) => state.integrations);
+  // A resource refresh can rerun the content initializer. Reset only when the
+  // composer closes; clearing selections during a refresh races content loading.
+  useEffect(() => () => useLaunchStore.getState().reset(), []);
   useEffect(() => {
     setDummy(!!props.dummy);
     setDate(props.date || newDayjs());
@@ -160,9 +163,9 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
   const existingData = useExistingData();
   const fetch = useFetch();
   const {
-    reset,
     addGlobalValue,
     addInternalValue,
+    setInternalValue,
     global,
     setCurrent,
     internal,
@@ -171,9 +174,9 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
     setRepeater,
   } = useLaunchStore(
     useShallow((state) => ({
-      reset: state.reset,
       addGlobalValue: state.addGlobalValue,
       addInternalValue: state.addInternalValue,
+      setInternalValue: state.setInternalValue,
       setCurrent: state.setCurrent,
       global: state.global,
       internal: state.internal,
@@ -246,10 +249,7 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
           value: p.tag.name,
         })) || []
       );
-      addInternalValue(
-        0,
-        existingData.integration,
-        existingData.posts.map((post) => ({
+      const values = existingData.posts.map((post) => ({
           delay: post.delay,
           content:
             post.content.indexOf('<p>') > -1
@@ -261,8 +261,12 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
           id: post.id,
           // @ts-ignore
           media: post.image as any[],
-        }))
-      );
+        }));
+      if (useLaunchStore.getState().internal.some((item) => item.integration.id === existingData.integration)) {
+        setInternalValue(existingData.integration, values);
+      } else {
+        addInternalValue(0, existingData.integration, values);
+      }
       setCurrent(existingData.integration);
     } else {
       setEditor('normal');
@@ -314,9 +318,6 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
       );
     }
 
-    return () => {
-      reset();
-    };
   }, [
     existingData,
     props.focusedChannel,
@@ -326,10 +327,10 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
     setRepeater,
     setTags,
     addInternalValue,
+    setInternalValue,
     setCurrent,
     setEditor,
     addGlobalValue,
-    reset,
   ]);
 
   if (!global.length && !internal.length) {

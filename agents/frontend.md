@@ -36,6 +36,11 @@ New authenticated pages go under `(app)/(site)/<feature>/page.tsx`.
 
 ## Data fetching — SWR via `useFetch`
 
+The composer resets its shared store when the composer unmounts, not when a
+post resource refreshes. Refreshing existing post content replaces its internal
+values while retaining the selected channel; resetting during initialization
+clears that selection before the content can resolve its integration.
+
 Featured channel setup stays in `ChannelConfigForm`: when no OAuth app is configured,
 the primary action opens the guided credentials form in the same modal. Meta channels
 show their account prerequisites before setup or connection. OAuth initiation and save
