@@ -31,7 +31,8 @@ Cross-references: `agents/backend.md` (module wiring), `agents/database.md` (Pri
 `refresh.integration.service.ts:101`, `video-render.service.ts:187`. When disabled,
 sends are skipped (email logs and returns `undefined`; no fallback worker).
 
-**Container routing:** `docker/nginx.conf` preserves the URI for the exact public
+**Container routing:** `docker/nginx.prod.conf` (production) and `docker/nginx.conf`
+(development) preserve the URI for the exact public
 `/api/inngest` endpoint because the backend controller includes the `/api` prefix.
 Other `/api/` requests still strip that prefix. Keep this exception when changing
 the proxy configuration so cloud sync and signed execution requests reach the handler.
