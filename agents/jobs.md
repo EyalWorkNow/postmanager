@@ -269,3 +269,10 @@ has an integration spec (`inngest-run.repository.int-spec.ts`, run via
 - [ ] Factory spec written with `vi.mock` on `inngest.client` + `captureFunctionHandler`/`createMockStep`; asserts id, trigger, step ids, activity calls.
 - [ ] New function appears in the Inngest dev UI (http://localhost:8288) after backend restart.
 - [ ] Did NOT add `@nestjs/schedule` `@Cron` for new work — Inngest cron instead.
+
+### Inngest account concurrency
+
+Function concurrency is capped at five by default so a fresh free Inngest account
+can sync all functions. Set `INNGEST_CONCURRENCY_LIMIT` to a positive integer
+matching the account plan to raise this ceiling. Provider limits and render limits
+remain upper bounds; the cap never raises a function's requested concurrency.

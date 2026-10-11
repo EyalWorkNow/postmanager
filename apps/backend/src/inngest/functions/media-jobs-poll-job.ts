@@ -1,3 +1,4 @@
+import { capInngestConcurrency } from '../concurrency';
 import { inngest } from '@postmill-ai/nestjs-libraries/inngest/inngest.client';
 import { mediaPollJobEvent } from '@postmill-ai/nestjs-libraries/inngest/inngest.types';
 import { MediaJobsActivity } from '@postmill-ai/nestjs-libraries/inngest/activities/media-jobs.activity';
@@ -8,7 +9,7 @@ export const createMediaJobsPollJob = (
   inngest.createFunction(
     {
       id: 'media-jobs-poll-job',
-      concurrency: 15,
+      concurrency: capInngestConcurrency(15),
       triggers: [mediaPollJobEvent],
     },
     async ({ step, event }) => {

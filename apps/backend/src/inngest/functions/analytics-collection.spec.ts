@@ -228,7 +228,7 @@ describe('createAnalyticsSyncIntegration (per-integration event handler)', () =>
     expect(inngest.createFunction).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'analytics-sync-integration',
-        concurrency: 10,
+        concurrency: 5,
         triggers: [analyticsSyncIntegrationEvent],
       }),
       expect.any(Function)

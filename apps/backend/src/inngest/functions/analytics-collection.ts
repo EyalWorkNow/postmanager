@@ -1,3 +1,4 @@
+import { capInngestConcurrency } from '../concurrency';
 import { inngest } from '@postmill-ai/nestjs-libraries/inngest/inngest.client';
 import {
   analyticsSyncIntegrationEvent,
@@ -152,7 +153,7 @@ export const createAnalyticsSyncIntegration = (
   inngest.createFunction(
     {
       id: 'analytics-sync-integration',
-      concurrency: 10,
+      concurrency: capInngestConcurrency(10),
       triggers: [analyticsSyncIntegrationEvent],
     },
     async ({ step, event }) => {

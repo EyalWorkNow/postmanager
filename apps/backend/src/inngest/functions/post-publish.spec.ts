@@ -69,10 +69,10 @@ describe('createPostPublishFunctions', () => {
       (call) => call[0].id === 'post-publish-instagram'
     );
 
-    // instagram = 400, instagram-standalone = 200 → queue limit is 200
+    // instagram = 400, instagram-standalone = 200 → queue limit is 200, capped at 5 by the free account plan
     expect(instagramCall).toBeDefined();
     expect(instagramCall![0].concurrency).toEqual({
-      limit: 200,
+      limit: 5,
       key: 'event.data.organizationId',
     });
   });

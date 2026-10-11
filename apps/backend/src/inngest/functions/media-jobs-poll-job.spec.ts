@@ -29,11 +29,11 @@ describe('createMediaJobsPollJob', () => {
     createMediaJobsPollJob(mediaJobsActivity as any);
   });
 
-  it('registers a media/poll-job handler with concurrency 15', () => {
+  it('registers a media/poll-job handler with concurrency 5', () => {
     expect(inngest.createFunction).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'media-jobs-poll-job',
-        concurrency: 15,
+        concurrency: 5,
         triggers: [mediaPollJobEvent],
       }),
       expect.any(Function)

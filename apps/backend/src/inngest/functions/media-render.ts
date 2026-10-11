@@ -1,3 +1,4 @@
+import { capInngestConcurrency } from '../concurrency';
 import { inngest } from '@postmill-ai/nestjs-libraries/inngest/inngest.client';
 import { mediaRenderEvent } from '@postmill-ai/nestjs-libraries/inngest/inngest.types';
 import { MediaJobsActivity } from '@postmill-ai/nestjs-libraries/inngest/activities/media-jobs.activity';
@@ -11,7 +12,7 @@ export const createMediaRender = (mediaJobsActivity: MediaJobsActivity) =>
   inngest.createFunction(
     {
       id: 'media-render',
-      concurrency: { limit: getRenderConcurrency() },
+      concurrency: { limit: capInngestConcurrency(getRenderConcurrency()) },
       triggers: [mediaRenderEvent],
     },
     async ({ step, event }) =>

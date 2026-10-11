@@ -1,3 +1,4 @@
+import { capInngestConcurrency } from '../concurrency';
 import { inngest } from '@postmill-ai/nestjs-libraries/inngest/inngest.client';
 import { postPublishEvent } from '@postmill-ai/nestjs-libraries/inngest/inngest.types';
 import { PostActivity } from '@postmill-ai/nestjs-libraries/inngest/activities/post.activity';
@@ -531,7 +532,7 @@ export const createPostPublishFunctions = (postActivity: PostActivity) =>
     inngest.createFunction(
       {
         id: `post-publish-${taskQueue}`,
-        concurrency: { limit, key: 'event.data.organizationId' },
+        concurrency: { limit: capInngestConcurrency(limit), key: 'event.data.organizationId' },
         cancelOn: [
           {
             event: 'post/cancel',
