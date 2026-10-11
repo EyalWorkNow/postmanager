@@ -4508,5 +4508,20 @@
   "channel_setup_needed_title": "Set up {{brand}} once, then connect",
   "channel_setup_needed_body": "This installation does not have an app configured for this network yet. We will guide you through adding its app keys here, then open the account login. Your account password is only entered on the network’s own site.",
   "channel_setup_start": "Start guided setup",
-  "channel_connect_save_retry": "Could not save the connection settings. Check your connection and try again."
+  "channel_connect_save_retry": "Could not save the connection settings. Check your connection and try again.",
+  "easy_guide_title": "Your next post, in three simple steps",
+  "easy_guide_hint": "Start here. No technical experience needed.",
+  "easy_connect_title": "Connect an account",
+  "easy_connected_body": "Your account is connected. You can create a post.",
+  "easy_connect_body": "Choose Facebook or Instagram and follow the instructions.",
+  "easy_accounts": "View accounts",
+  "easy_connect_action": "Connect my account",
+  "easy_create_title": "Prepare your post",
+  "easy_create_body": "Write a few words and add a photo or video. You can save a draft.",
+  "easy_create_action": "Create a post",
+  "easy_schedule_title": "Choose when to publish",
+  "easy_schedule_body": "Publish now or choose a date. Follow the result in your calendar.",
+  "easy_schedule_action": "Open my calendar",
+  "easy_connected_status": "Connected",
+  "republish_post": "Republish the post"
 }

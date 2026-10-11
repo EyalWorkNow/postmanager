@@ -17,6 +17,7 @@ import { CalendarIcon, PlusIcon } from '@postmill-ai/frontend/components/ui/icon
 import { ErrorState } from '@postmill-ai/frontend/components/analytics/kit/states';
 import { useDashboardSummary } from './hooks/useDashboardSummary';
 import { greetingForUser } from './dashboard.utils';
+import { PublishingGuide } from './publishing-guide';
 import './studio-dashboard.scss';
 
 export { greetingForUser };
@@ -68,6 +69,13 @@ export const DashboardComponent = () => {
         </div>
       </header>
 
+      <PublishingGuide
+        connected={summary ? summary.channelsConnected > 0 : undefined}
+        canConnect={canConnect}
+        canCreate={canCreate}
+        canReadPosts={canReadPosts}
+      />
+
       {error ? <ErrorState title={t('studio_load_error', 'Could not load your workspace')} onRetry={() => void mutate()} /> : (
         <section className="studio-stats" aria-label={t('studio_overview', 'Workspace overview')} aria-busy={isLoading}>
           {stats.map((stat) => (
@@ -87,8 +95,7 @@ export const DashboardComponent = () => {
 
       <div className="studio-main-grid">
         <section className="studio-hero">
-          <Image src="/images/content-studio.jpg" alt="" fill priority sizes="(max-width: 800px) 100vw, 65vw" className="object-cover" />
-          <div className="studio-hero-shade" />
+          <div className="studio-hero-art" aria-hidden="true" />
           <span className="studio-hero-chip">{t('studio_made_for_you', 'MORE SPACE FOR YOUR IDEAS')}</span>
           <div className="studio-hero-copy">
             <span className="studio-eyebrow">{t('studio_hero_eyebrow', 'FROM IDEA TO POST')}</span>
@@ -111,7 +118,7 @@ export const DashboardComponent = () => {
           </div>
           <p className="text-newTableText studio-small">{t('studio_networks_hint', 'Choose a network and approve access to your account. Your password stays with the network.')}</p>
           {canConnect && <Button onClick={connect} loading={connecting} innerClassName="gap-2" className="w-full"><PlusIcon />{t('studio_connect', 'Connect a network')}</Button>}
-          <Link href="/posts" className="studio-text-link text-newTableText">{t('studio_manage_networks', 'Manage connected accounts')} <span aria-hidden="true">←</span></Link>
+          <Link href="/settings/channels" className="studio-text-link text-newTableText">{t('studio_manage_networks', 'Manage connected accounts')} <span aria-hidden="true">←</span></Link>
         </aside>
       </div>
 

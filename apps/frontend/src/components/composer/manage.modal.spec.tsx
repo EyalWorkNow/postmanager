@@ -294,6 +294,27 @@ describe('ManageModal', () => {
     (h.fetchImpl as any).mock.calls.filter((c: any[]) => c[0] === '/posts')
       .length;
 
+  it('reschedules an overdue queued post without claiming it was published', async () => {
+    h.existing = { integration: 'int1', group: 'queued', posts: [{ state: 'QUEUE' }] };
+    h.state.date = dayjs().subtract(2, 'hours');
+    renderModal();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Update' })); });
+    await waitFor(() => expect(postCalls()).toBe(1));
+    expect(h.openModal).not.toHaveBeenCalled();
+    expect(h.state.setDate).toHaveBeenCalled();
+  });
+
+  it('releases the submit lock when the published-post dialog is dismissed', async () => {
+    h.existing = { integration: 'int1', group: 'published', posts: [{ state: 'PUBLISHED' }] };
+    renderModal();
+    const button = screen.getByRole('button', { name: 'Update' });
+    await act(async () => { fireEvent.click(button); });
+    expect(h.openModal).toHaveBeenCalled();
+    await act(async () => { h.openModal.mock.calls[0][0].onClose(); });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    expect(postCalls()).toBe(0);
+  });
+
   // P0 — POST /posts 400s: every post's settings must carry the `__type`
   // discriminator (the provider identifier) so the server can route settings
   // to the right provider DTO.

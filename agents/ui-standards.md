@@ -11,7 +11,7 @@ Source of truth is `apps/frontend/src/app/colors.scss` — CSS custom properties
 | Surfaces | `newBgColor` (--new-bgColor, page bg), `newBgColorInner` (card bg), `third` (alias of newBgColorInner), `newBackdrop` (--new-back-drop), `boxHover` (--new-box-hover), `newSettings` (--new-settings) | `primary`/`secondary` are legacy aliases of newBgColor/newBgColorInner |
 | Borders / lines | `newBorder` (--new-border), `newSep` (--new-sep), `newBgLineColor`, `newTableBorder`, `tableBorder` (same var), `blockSeparator` | `newTableBorder` is the default card/table border |
 | Text | `textColor` (--new-btn-text, primary text), `newTextColor` (RGB triplet — alpha-aware: `text-newTextColor/70`), `textItemFocused`, `textItemBlur`, `inputText`, `newTableText` (secondary), `newTableTextFocused`, `gray` | `newTableText` = muted/secondary text on cards |
-| Brand / action | `btnPrimary` (#2b5cd3), `btnPrimaryAccent` (theme-adjusted variant of btnPrimary for text on tinted chips — use it instead of `text-btnPrimary` on `bg-btnPrimary/15` surfaces for AA), `btnSimple`, `btnText`, `dangerText` (theme-adjusted error text), `ai`, `promo`, `badge` | `dangerText` flips light-red/deep-red per theme; do not use raw `text-red-*` for themed danger copy |
+| Brand / action | `btnPrimary` (forest green in light mode), `btnPrimaryAccent` (theme-adjusted variant of btnPrimary for text on tinted chips — use it instead of `text-btnPrimary` on `bg-btnPrimary/15` surfaces for AA), `btnSimple`, `btnText`, `dangerText` (theme-adjusted error text), `ai`, `promo`, `badge` | `dangerText` flips light-red/deep-red per theme; do not use raw `text-red-*` for themed danger copy |
 | Semantic metrics | `positive` / `negative` (theme-adjusted green/red for up/down metrics, AA-tuned per theme) | Chart/delta colors; also redeclared unthemed at `:root` — the themed `.dark`/`.light` values win |
 | Priority | `priorityHigh`, `priorityMedium`, `priorityLow` | |
 | Charts | `--chart-1` … `--chart-8`, `--chart-muted` | **Theme-independent**: declared once at bare `:root` in colors.scss, not inside `.dark`/`.light`; no Tailwind names — use `bg-[var(--chart-1)]` etc. |
@@ -43,6 +43,15 @@ its `@apply` blocks working via `@reference './tailwind.css'`. PostCSS uses `@ta
 - **Plugins**: `tailwind-scrollbar` (v4) only. `tailwindcss-rtl` is gone — `rtl:`/`ltr:` are core v4 variants. Custom variants `child:` (`& > *`) and `child-hover:` live in `tailwind.css` as `@custom-variant`.
 - **v4 spellings** (don't reintroduce the v3 names): `outline-hidden` (not `outline-none`), `shrink-*` (not `flex-shrink-*`), `rounded-xs`/`blur-xs`/`shadow-xs` for the old `*-sm`, bare `rounded`→`rounded-sm`, bare `shadow`→`shadow-sm`, `/opacity` modifiers instead of `bg-opacity-*`, and trailing `!` for important (`bg-red-700!`, not `!bg-red-700`). Function colors are not supported through the `@config` bridge — theme colors are plain `var(--x)` strings; v4 applies `/opacity` via `color-mix`.
 - **RTL is supported.** Use logical utilities — `ps-`/`pe-`, `ms-`/`me-`, `start-`/`end-`, `text-start` — instead of `pl-`/`pr-`/`left-`/`right-` in anything user-facing.
+
+## Publishing workspace
+
+The default theme is light, with neutral surfaces, thin borders, rounded cards and green actions.
+`studioLime`, `studioForest` and `studioCream` have values in both themes and are reserved for
+publishing guidance and the dashboard hero. Keep body text readable rather than using decorative
+chart typography. The dashboard starts with three explicit actions: connect an account, prepare a
+post, and choose a publishing time. Only mark an account connected from the loaded summary;
+loading is not an empty or completed state. Advanced analytics remain behind the existing toggle.
 
 ## Primitive catalog
 

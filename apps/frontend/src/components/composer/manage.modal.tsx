@@ -434,13 +434,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       setLoading(true);
       if (
         (type === 'now' || type === 'schedule') &&
-        (existingData?.posts?.[0]?.state === 'PUBLISHED' ||
-          (existingData?.posts?.[0]?.state === 'QUEUE' &&
-            dayjs().isAfter(date.utc())))
+        existingData?.posts?.[0]?.state === 'PUBLISHED'
       ) {
-        const whatToDo = await new Promise((resolve) => {
+        const whatToDo = await new Promise<'update' | 'republish' | 'cancel'>((resolve) => {
           modal.openModal({
             title: t('what_do_you_want_to_do', 'What do you want to do?'),
+            onClose: () => resolve('cancel'),
             children: (
               <div className="flex flex-col">
                 <div className="text-[20px] mb-[20px]">
@@ -454,18 +453,18 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     <Button
                       type="button"
                       className="flex-1"
-                      onClick={() => resolve('update')}
+                      onClick={() => { resolve('update'); modal.closeCurrent(); }}
                     >
-                      Just update the post details
+                      {t('just_update_post_details', 'Just update the post details')}
                     </Button>
                   </div>
                   <div className="flex-1 flex">
                     <Button
                       type="button"
                       className="flex-1"
-                      onClick={() => resolve('republish')}
+                      onClick={() => { resolve('republish'); modal.closeCurrent(); }}
                     >
-                      Republish the post
+                      {t('republish_post', 'Republish the post')}
                     </Button>
                   </div>
                 </div>
@@ -474,6 +473,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           });
         });
 
+        if (whatToDo === 'cancel') {
+          setLoading(false);
+          return;
+        }
         if (whatToDo === 'update') {
           type = 'update';
         }

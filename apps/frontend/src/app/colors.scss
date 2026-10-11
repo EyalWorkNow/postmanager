@@ -1,25 +1,28 @@
 :root {
   .dark {
+    --studio-lime: #d4e985;
+    --studio-forest: #153c2b;
+    --studio-cream: #f4f6e8;
     --new-back-drop: #000;
-    --new-settings: #242323;
-    --new-border: #252525;
-    --new-bgColor: #090a0d;
-    --new-bgColorInner: #1e1f21;
-    --studio-bg: #0a0f1f;
-    --studio-border: #2a3450;
-    --new-sep: #454444;
-    --new-bgLineColor: #212121;
-    --new-textItemFocused: #1a1919;
-    --new-textItemBlur: #999999;
-    --new-boxFocused: #fff;
+    --new-settings: #20343a;
+    --new-border: #2a3d43;
+    --new-bgColor: #101c20;
+    --new-bgColorInner: #18282d;
+    --studio-bg: #101c20;
+    --studio-border: #2a3d43;
+    --new-sep: #344b52;
+    --new-bgLineColor: #253a40;
+    --new-textItemFocused: #d4f5ef;
+    --new-textItemBlur: #a3b5ba;
+    --new-boxFocused: #21474b;
     --new-textColor: 255 255 255;
-    --new-blockSeparator: #272626;
-    --new-btn-simple: #313030;
+    --new-blockSeparator: #2a3d43;
+    --new-btn-simple: #243a40;
     --new-btn-text: #ffffff;
-    --new-btn-primary: #dc1b2b;
+    --new-btn-primary: #087f83;
     /* Accessible accent text for subtle btnPrimary/15 chips (a11y: text-btnPrimary fails
-       AA ~3.3:1 on the tinted-over-dark bg). Lighter blue → ~5.9:1 on dark chip surfaces. */
-    --new-btn-primary-accent: #ff828b;
+       AA ~3.3:1 on the tinted-over-dark bg). Light teal maintains contrast on dark chip surfaces. */
+    --new-btn-primary-accent: #68d8d0;
     /* Theme-aware danger/error text (a11y: text-dangerText is only ~2.5:1 on the light bg).
        Dark: light red (readable on dark surfaces + dark-red chips). */
     --new-danger-text: #f87171;
@@ -32,16 +35,16 @@
     --new-gray: #8c8c8c;
     --new-input-text: #64748b;
     --new-modal-custom: #000000;
-    --new-box-hover: #201f1f;
-    --new-table-border: #2b2b2b;
-    --new-table-header: #1e1d1d;
-    --new-table-text: #9c9c9c;
+    --new-box-hover: #20383e;
+    --new-table-border: #2d4248;
+    --new-table-header: #20343a;
+    --new-table-text: #abbcc1;
     --new-table-text-focused: #1d9bf0;
     /* Semantic up/down metric colors — vibrant on dark surfaces (pass AA on dark). */
     --positive: #00d47b;
     --negative: #f97066;
-    --heading-accent: #4f9fe8;
-    --heading-h1: #b3bdd0;
+    --heading-accent: #68d8d0;
+    --heading-h1: #edf7f7;
     --new-small-strips: #191818;
     --new-big-strips: #161515;
     --new-col-color: #2c2b2b;
@@ -65,26 +68,28 @@
     --youtube-svg-border: #A0A0A0;
   }
   .light {
+    --studio-lime: #d4e985;
+    --studio-forest: #153c2b;
+    --studio-cream: #f4f6e8;
     --new-back-drop: #1a2744;
-    --new-settings: #eceef1;
-    --new-sep: #d5d9dd;
-    --new-border: #eaecee;
-    --new-bgColor: #f0f2f4;
+    --new-settings: #eceee7;
+    --new-sep: #d5d9ce;
+    --new-border: #d5d9ce;
+    --new-bgColor: #f2f3ef;
     --new-bgColorInner: #ffffff;
-    --studio-bg: #d4e0f0;
-    --studio-border: #aebdd4;
-    --new-bgLineColor: #d6deea;
-    --new-textItemFocused: #1f47a8;
-    --new-textItemBlur: #63676c;
-    --new-boxFocused: #e3ecfb;
-    --new-textColor: 14 14 14;
-    --new-blockSeparator: #f2f2f4;
-    --new-btn-simple: #eceef1;
-    --new-btn-text: #0e0e0e;
-    --new-btn-primary: #dc1b2b;
-    /* Accessible accent text for subtle btnPrimary/15 chips in light mode: darker blue →
-       ~5.7:1 on the light tinted chip bg (plain btnPrimary is ~4.2:1 there). */
-    --new-btn-primary-accent: #b51424;
+    --studio-bg: #f2f3ef;
+    --studio-border: #d5d9ce;
+    --new-bgLineColor: #e3e5dd;
+    --new-textItemFocused: #285a31;
+    --new-textItemBlur: #60685d;
+    --new-boxFocused: #e5edcf;
+    --new-textColor: 30 34 41;
+    --new-blockSeparator: #dedfd6;
+    --new-btn-simple: #eceee7;
+    --new-btn-text: #1e2229;
+    --new-btn-primary: #345e32;
+    /* Accessible accent text for subtle btnPrimary/15 chips in light mode: deep teal maintains contrast on light tinted chip surfaces. */
+    --new-btn-primary-accent: #285a31;
     /* Light: deep red — passes on the page bg, white cards, AND the light-pink bg-red-900/20
        danger chips (a lighter red would fail on those). */
     --new-danger-text: #a01212;
@@ -97,21 +102,21 @@
     --new-gray: #8c8c8c;
     --new-input-text: #64748b;
     --new-modal-custom: transparent;
-    --new-box-hover: #f4f6f8;
-    --new-table-border: #e7e9eb;
-    --new-table-header: #f5f7f9;
-    --new-table-text: #595d63;
-    --new-table-text-focused: #0e6ba8;
+    --new-box-hover: #eef2e2;
+    --new-table-border: #9da493;
+    --new-table-header: #f5f6f0;
+    --new-table-text: #596253;
+    --new-table-text-focused: #285a31;
     /* Semantic up/down metric colors — darkened for AA as text on light surfaces
        (green-800 / red-700). green-800 is needed (not green-700) so positive text on a
        `bg-(--positive)/10` chip still clears 4.5:1 (green-700 measured 4.39:1 there). */
     --positive: #166534;
     --negative: #b91c1c;
-    --heading-accent: #2f53a8;
-    --heading-h1: var(--new-btn-primary);
+    --heading-accent: #285a31;
+    --heading-h1: var(--new-btn-text);
     --new-small-strips: #191818;
-    --new-big-strips: #f5f7f9;
-    --new-col-color: #eff1f3;
+    --new-big-strips: #f5f6f0;
+    --new-col-color: #e4e8da;
     --new-menu-dots: #696868;
     --new-menu-hover: #000;
     --menu-shadow: -22px 83px 24px 0 rgba(55, 52, 75, 0),
@@ -141,10 +146,10 @@
 }
 
 :root {
-  --chart-1: #2b5cd3;
-  --chart-2: #32d583;
+  --chart-1: #699c36;
+  --chart-2: #a2c958;
   --chart-3: #1d9bf0;
-  --chart-4: #f97066;
+  --chart-4: #e574aa;
   --chart-5: #ffac30;
   --chart-6: #8b90ff;
   --chart-7: #1d9bf0;

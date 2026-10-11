@@ -55,7 +55,7 @@ export const metadata = {
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();
   const language = cookieStore.get(cookieName)?.value || fallbackLng;
-  const mode = cookieStore.get('mode')?.value || 'dark';
+  const mode = cookieStore.get('mode')?.value || 'light';
   // Plausible tracking has its own switch now (NEXT_PUBLIC_PLAUSIBLE_DOMAIN) —
   // it was gated on the billing switch, so analytics went dark on any
   // deployment with billing off. Legacy fallback keeps the old behavior.
