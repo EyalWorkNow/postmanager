@@ -93,6 +93,8 @@ ENV NODE_ENV=production
 ENV TZ=UTC
 # Backend listen port (internal — only nginx's :5000 is published).
 ENV PORT=3000
+# Match nginx's public /uploads route and the persistent media volume.
+ENV UPLOAD_DIRECTORY=/uploads
 
 # Unprivileged user — the processes must not run as root.
 RUN addgroup --system app \
