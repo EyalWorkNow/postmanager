@@ -241,13 +241,22 @@ export const useLaunchStore = create<StoreState>()((set) => ({
       );
 
       if (integrationIndex === -1) {
+        const selectedIntegration = state.selectedIntegrations.find(
+          (i) => i.integration.id === integrationId
+        );
+
+        // The composer can initialize an existing post before React has
+        // committed the matching selected channel. Treat that first call as a
+        // no-op; the effect is re-run once the channel is selected.
+        if (!selectedIntegration) {
+          return state;
+        }
+
         return {
           internal: [
             ...state.internal,
             {
-              integration: state.selectedIntegrations.find(
-                (i) => i.integration.id === integrationId
-              )!.integration,
+              integration: selectedIntegration.integration,
               integrationValue: value,
             },
           ],

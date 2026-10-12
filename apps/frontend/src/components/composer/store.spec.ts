@@ -68,6 +68,19 @@ describe('useLaunchStore', () => {
     });
   });
 
+  describe('addInternalValue', () => {
+    it('waits for the selected channel instead of throwing during composer initialization', () => {
+      const store = useLaunchStore;
+
+      expect(() =>
+        store.getState().addInternalValue(0, 'missing', [
+          { id: 'post', content: 'Draft', delay: 0, media: [] },
+        ])
+      ).not.toThrow();
+      expect(store.getState().internal).toEqual([]);
+    });
+  });
+
   describe('deleteGlobalValue (4.5g documented id-reuse)', () => {
     it('keeps ids pinned to slot position while content shifts up', () => {
       const store = useLaunchStore;
