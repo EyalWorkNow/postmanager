@@ -169,6 +169,7 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
     global,
     setCurrent,
     internal,
+    selectedIntegrations,
     setTags,
     setEditor,
     setRepeater,
@@ -180,6 +181,7 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
       setCurrent: state.setCurrent,
       global: state.global,
       internal: state.internal,
+      selectedIntegrations: state.selectedIntegrations,
       setTags: state.setTags,
       setEditor: state.setEditor,
       setRepeater: state.setRepeater,
@@ -239,6 +241,16 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
 
   useEffect(() => {
     if (existingData.integration) {
+      // In React 19, nested effects run before the parent effect that selects
+      // the existing post's channel. Wait for that selection instead of
+      // initializing values against a missing integration.
+      if (
+        !selectedIntegrations.some(
+          (item) => item.integration.id === existingData.integration
+        )
+      ) {
+        return;
+      }
       if (existingData?.posts?.[0]?.intervalInDays) {
         setRepeater(existingData.posts[0].intervalInDays);
       }
@@ -320,6 +332,7 @@ const ComposerInnerInner: FC<ComposerProps> = (props) => {
 
   }, [
     existingData,
+    selectedIntegrations,
     props.focusedChannel,
     props.onlyValues,
     props.set,
